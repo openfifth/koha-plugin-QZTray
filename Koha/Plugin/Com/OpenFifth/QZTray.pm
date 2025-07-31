@@ -148,11 +148,11 @@ sub uninstall {
 sub _generate_qz_js {
     my ( $self, $certificate, $private_key ) = @_;
     
-    # Read JavaScript files and inline them
-    my $rsvp_js = $self->_read_js_file('js/dependencies/rsvp-3.1.0.min.js');
-    my $sha256_js = $self->_read_js_file('js/dependencies/sha-256.min.js');
-    my $jsrsasign_js = $self->_read_js_file('js/dependencies/jsrsasign-all-min.js');
-    my $qz_js = $self->_read_js_file('js/qz-tray.js');
+    # Read JavaScript files directly with mbf_read
+    my $rsvp_js = $self->mbf_read('js/dependencies/rsvp-3.1.0.min.js') // "// RSVP not found";
+    my $sha256_js = $self->mbf_read('js/dependencies/sha-256.min.js') // "// SHA-256 not found";
+    my $jsrsasign_js = $self->mbf_read('js/dependencies/jsrsasign-all-min.js') // "// JSRSASign not found";
+    my $qz_js = $self->mbf_read('js/qz-tray.js') // "// QZ Tray not found";
     
     # Debug: Check file sizes
     warn "JSRSASign JS length: " . length($jsrsasign_js);
@@ -259,6 +259,8 @@ function popDrawer(b) {
     console.log('KEYUTIL available:', typeof KEYUTIL !== 'undefined');
     console.log('KJUR available:', typeof KJUR !== 'undefined');
     console.log('RSAKey available:', typeof RSAKey !== 'undefined');
+    console.log('Sha256 available:', typeof Sha256 !== 'undefined');
+    console.log('CryptoJS available:', typeof CryptoJS !== 'undefined');
     
     // Only add drawer button on main page for testing
     if (window.location.href.indexOf('mainpage.pl') !== -1) {
