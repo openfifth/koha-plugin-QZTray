@@ -153,10 +153,6 @@ sub _generate_qz_js {
     my $sha256_js = $self->_read_js_file('js/dependencies/sha-256.min.js');
     my $qz_js = $self->_read_js_file('js/qz-tray.js');
     
-    # Debug: Log file sizes to help identify issues
-    warn "RSVP JS length: " . length($rsvp_js);
-    warn "SHA256 JS length: " . length($sha256_js);
-    warn "QZ JS length: " . length($qz_js);
     
     # Escape JavaScript strings
     $certificate =~ s/\\/\\\\/g;
