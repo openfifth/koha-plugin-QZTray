@@ -182,10 +182,72 @@ window.qzConfig = {
     // QZ Tray Main Library
     $qz_js
     
-    // Initialize QZ Tray if available
-    if (typeof initQZTray === 'function') {
-        initQZTray();
+    // QZ Tray Cash Drawer Functionality
+    function displayError(err) {
+        console.error(err);
     }
+
+    function chr(i) {
+        return String.fromCharCode(i);
+    }
+
+    function drawerCode(printer) {
+        var code = [chr(27) + chr(112) + chr(48) + chr(55) + chr(121)]; //default code
+        if (printer.indexOf('Bixolon SRP-350') !== -1 ||
+            printer.indexOf('Epson TM-T88V') !== -1 ||
+            printer.indexOf('Metapace T') !== -1 ) {
+            code = [chr(27) + chr(112) + chr(48) + chr(55) + chr(121)];
+        }
+        if (printer.indexOf('Citizen CBM1000') !== -1) {
+            code = [chr(27) + chr(112) + chr(0) + chr(50) + chr(250)];
+        }
+        return code;
+    }
+
+    function popDrawer(b) {
+        qz.security.setCertificatePromise(function(resolve, reject) {
+            resolve(window.qzConfig.certificate);
+        });
+        
+        qz.security.setSignaturePromise(function(toSign) {
+            return function(resolve, reject) {
+                try {
+                    var pk = KEYUTIL.getKey(window.qzConfig.privateKey);
+                    var sig = new KJUR.crypto.Signature({"alg": "SHA1withRSA"});
+                    sig.init(pk);
+                    sig.updateString(toSign);
+                    var hex = sig.sign();
+                    resolve(stob64(hextorstr(hex)));
+                } catch (err) {
+                    console.error(err);
+                    reject(err);
+                }
+            };
+        });
+        
+        qz.websocket.connect().then(function () {
+            console.log('QZ Tray connected!');
+            return qz.printers.getDefault()
+        }).then(function (printer) {
+            var config = qz.configs.create(printer);
+            var data = drawerCode(printer);
+            console.log('Opening drawer for printer:', printer);
+            return qz.print(config, data);
+        }).then(function() {
+            \$("#drawer-button").hide();
+            if (b) \$(b).show();
+        }).catch(displayError);
+    }
+
+    // Wait for DOM to be ready
+    \$(document).ready(function() {
+        // Only add drawer button on main page for testing
+        if (window.location.href.indexOf('mainpage.pl') !== -1) {
+            console.log('QZ Tray: Adding test drawer button to mainpage');
+            // Add a test button to the main content area
+            \$('#main_intranet-main').prepend('<div style="margin: 10px 0;"><input type="button" class="btn btn-primary" id="drawer-button" value="Test Cash Drawer" onclick="popDrawer();return false;" /></div>');
+        }
+    });
 })();
 </script>
     };
