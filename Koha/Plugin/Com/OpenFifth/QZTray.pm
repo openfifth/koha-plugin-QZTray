@@ -217,6 +217,11 @@ function popDrawer(b) {
         qz.security.setSignaturePromise(function(toSign) {
             return function(resolve, reject) {
                 try {
+                    if (typeof KEYUTIL === 'undefined') {
+                        console.error('KEYUTIL not available, using empty signature for testing');
+                        resolve('');
+                        return;
+                    }
                     var pk = KEYUTIL.getKey(window.qzConfig.privateKey);
                     var sig = new KJUR.crypto.Signature({"alg": "SHA1withRSA"});
                     sig.init(pk);
@@ -224,7 +229,7 @@ function popDrawer(b) {
                     var hex = sig.sign();
                     resolve(stob64(hextorstr(hex)));
                 } catch (err) {
-                    console.error(err);
+                    console.error('Signing error:', err);
                     reject(err);
                 }
             };
@@ -246,6 +251,11 @@ function popDrawer(b) {
 
 // Wait for DOM to be ready
 \$(document).ready(function() {
+    // Debug: Check if signing libraries are loaded
+    console.log('KEYUTIL available:', typeof KEYUTIL !== 'undefined');
+    console.log('KJUR available:', typeof KJUR !== 'undefined');
+    console.log('RSAKey available:', typeof RSAKey !== 'undefined');
+    
     // Only add drawer button on main page for testing
     if (window.location.href.indexOf('mainpage.pl') !== -1) {
         console.log('QZ Tray: Adding test drawer button to mainpage');
