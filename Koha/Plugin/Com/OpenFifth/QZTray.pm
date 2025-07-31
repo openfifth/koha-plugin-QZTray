@@ -154,6 +154,10 @@ sub _generate_qz_js {
     my $jsrsasign_js = $self->_read_js_file('js/dependencies/jsrsasign-all-min.js');
     my $qz_js = $self->_read_js_file('js/qz-tray.js');
     
+    # Debug: Check file sizes
+    warn "JSRSASign JS length: " . length($jsrsasign_js);
+    warn "JSRSASign JS starts with: " . substr($jsrsasign_js, 0, 100) if length($jsrsasign_js) > 0;
+    
     
     # Escape JavaScript strings
     $certificate =~ s/\\/\\\\/g;
@@ -270,14 +274,10 @@ function popDrawer(b) {
 sub _read_js_file {
     my ( $self, $file_path ) = @_;
     
-    my $full_path = $self->mbf_path($file_path);
+    # Use mbf_read to read file from plugin bundle
+    my $content = $self->mbf_read($file_path);
     
-    if ( -f $full_path ) {
-        open my $fh, '<:encoding(UTF-8)', $full_path or return "// Error reading $file_path";
-        local $/;
-        my $content = <$fh>;
-        close $fh;
-        
+    if ( $content ) {
         # Clean up the content to avoid JavaScript syntax issues
         $content =~ s/\r\n/\n/g;  # Normalize line endings
         $content =~ s/\r/\n/g;    # Convert remaining CR to LF
@@ -286,7 +286,7 @@ sub _read_js_file {
         return $content;
     }
     
-    return "// File not found: $file_path";
+    return "// File not found via mbf_read: $file_path";
 }
 
 1;
