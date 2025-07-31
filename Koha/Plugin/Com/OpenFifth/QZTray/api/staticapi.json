@@ -1,0 +1,70 @@
+{
+  "/js/rsvp-3.1.0.min.js": {
+    "get": {
+      "x-mojo-to": "Static#get",
+      "tags": ["pluginStatic", "qztray"],
+      "responses": {
+        "200": {
+          "description": "JavaScript file found",
+          "schema": {
+            "type": "file"
+          }
+        },
+        "404": {
+          "description": "File not found"
+        }
+      }
+    }
+  },
+  "/js/jsrsasign-all-min.js": {
+    "get": {
+      "x-mojo-to": "Static#get",
+      "tags": ["pluginStatic", "qztray"],
+      "responses": {
+        "200": {
+          "description": "JavaScript file found",
+          "schema": {
+            "type": "file"
+          }
+        },
+        "404": {
+          "description": "File not found"
+        }
+      }
+    }
+  },
+  "/js/sha-256.min.js": {
+    "get": {
+      "x-mojo-to": "Static#get",
+      "tags": ["pluginStatic", "qztray"],
+      "responses": {
+        "200": {
+          "description": "JavaScript file found",
+          "schema": {
+            "type": "file"
+          }
+        },
+        "404": {
+          "description": "File not found"
+        }
+      }
+    }
+  },
+  "/js/qz-tray.js": {
+    "get": {
+      "x-mojo-to": "Static#get",
+      "tags": ["pluginStatic", "qztray"],
+      "responses": {
+        "200": {
+          "description": "JavaScript file found",
+          "schema": {
+            "type": "file"
+          }
+        },
+        "404": {
+          "description": "File not found"
+        }
+      }
+    }
+  }
+}
