@@ -6,8 +6,6 @@ use base qw(Koha::Plugins::Base);
 
 use C4::Context;
 use Koha::DateUtils;
-use Koha::Uploader;
-use Koha::UploadedFiles;
 
 our $VERSION = '1.0.0';
 our $MINIMUM_VERSION = "22.05.00.000";
@@ -53,46 +51,24 @@ sub configure {
         my @errors;
 
         # Handle certificate file upload
-        if ( $cgi->param('certificate_upload') ) {
-            my $uploader = Koha::Uploader->new({
-                category => 'QZTray',
-                allow_plugins => 1,
-            });
-            my $result = $uploader->upload_from_cgi($cgi, 'certificate_upload');
-            if ( !$result->{errors} && $result->{uploaded} ) {
-                my $uploaded_file = Koha::UploadedFiles->find($result->{uploaded}->[0]);
-                if ( $uploaded_file ) {
-                    my $cert_content = $uploaded_file->get_content;
-                    $self->store_data({ certificate_file => $cert_content });
-                    # Clean up the uploaded file as we've stored the content
-                    $uploaded_file->delete;
-                } else {
-                    push @errors, "Failed to retrieve certificate file";
-                }
+        my $cert_upload = $cgi->upload('certificate_upload');
+        if ( $cert_upload ) {
+            my $cert_content = $self->_read_upload($cert_upload);
+            if ( $cert_content ) {
+                $self->store_data({ certificate_file => $cert_content });
             } else {
-                push @errors, $result->{errors} ? join(', ', @{$result->{errors}}) : "Failed to upload certificate file";
+                push @errors, "Failed to read certificate file";
             }
         }
 
         # Handle private key file upload
-        if ( $cgi->param('private_key_upload') ) {
-            my $uploader = Koha::Uploader->new({
-                category => 'QZTray',
-                allow_plugins => 1,
-            });
-            my $result = $uploader->upload_from_cgi($cgi, 'private_key_upload');
-            if ( !$result->{errors} && $result->{uploaded} ) {
-                my $uploaded_file = Koha::UploadedFiles->find($result->{uploaded}->[0]);
-                if ( $uploaded_file ) {
-                    my $key_content = $uploaded_file->get_content;
-                    $self->store_data({ private_key_file => $key_content });
-                    # Clean up the uploaded file as we've stored the content
-                    $uploaded_file->delete;
-                } else {
-                    push @errors, "Failed to retrieve private key file";
-                }
+        my $key_upload = $cgi->upload('private_key_upload');
+        if ( $key_upload ) {
+            my $key_content = $self->_read_upload($key_upload);
+            if ( $key_content ) {
+                $self->store_data({ private_key_file => $key_content });
             } else {
-                push @errors, $result->{errors} ? join(', ', @{$result->{errors}}) : "Failed to upload private key file";
+                push @errors, "Failed to read private key file";
             }
         }
 
@@ -151,6 +127,19 @@ sub upgrade {
 sub uninstall {
     my ( $self, $args ) = @_;
     return 1;
+}
+
+sub _read_upload {
+    my ( $self, $upload ) = @_;
+    
+    return unless $upload;
+    
+    # Read the entire file content using slurp mode
+    my $fh = $upload;
+    local $/;
+    my $content = <$fh>;
+    
+    return $content;
 }
 
 
