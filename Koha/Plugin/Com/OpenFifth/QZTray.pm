@@ -150,7 +150,7 @@ sub _generate_qz_js {
     
     # Read JavaScript files directly with mbf_read
     my $rsvp_js = $self->mbf_read('js/dependencies/rsvp-3.1.0.min.js') // "// RSVP not found";
-    my $sha256_js = $self->mbf_read('js/dependencies/sha-256.min.js') // "// SHA-256 not found";
+    my $sha256_js = $self->mbf_read('js/dependencies/sha-256.min.js.orig') // "// SHA-256 not found";
     my $jsrsasign_js = $self->mbf_read('js/dependencies/jsrsasign-all-min.js') // "// JSRSASign not found";
     my $qz_js = $self->mbf_read('js/qz-tray.js') // "// QZ Tray not found";
     
