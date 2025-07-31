@@ -53,22 +53,36 @@ sub configure {
         # Handle certificate file upload
         my $cert_upload = $cgi->upload('certificate_upload');
         if ( $cert_upload ) {
-            my $cert_content = $self->_read_upload($cert_upload);
-            if ( $cert_content ) {
-                $self->store_data({ certificate_file => $cert_content });
+            if ( not defined $cert_upload ) {
+                push @errors, "Failed to get certificate file: " . $cgi->cgi_error;
             } else {
-                push @errors, "Failed to read certificate file";
+                my $cert_content;
+                while ( my $line = <$cert_upload> ) {
+                    $cert_content .= $line;
+                }
+                if ( $cert_content ) {
+                    $self->store_data({ certificate_file => $cert_content });
+                } else {
+                    push @errors, "Certificate file appears to be empty";
+                }
             }
         }
 
         # Handle private key file upload
         my $key_upload = $cgi->upload('private_key_upload');
         if ( $key_upload ) {
-            my $key_content = $self->_read_upload($key_upload);
-            if ( $key_content ) {
-                $self->store_data({ private_key_file => $key_content });
+            if ( not defined $key_upload ) {
+                push @errors, "Failed to get private key file: " . $cgi->cgi_error;
             } else {
-                push @errors, "Failed to read private key file";
+                my $key_content;
+                while ( my $line = <$key_upload> ) {
+                    $key_content .= $line;
+                }
+                if ( $key_content ) {
+                    $self->store_data({ private_key_file => $key_content });
+                } else {
+                    push @errors, "Private key file appears to be empty";
+                }
             }
         }
 
@@ -129,18 +143,6 @@ sub uninstall {
     return 1;
 }
 
-sub _read_upload {
-    my ( $self, $upload ) = @_;
-    
-    return unless $upload;
-    
-    # Read the entire file content using slurp mode
-    my $fh = $upload;
-    local $/;
-    my $content = <$fh>;
-    
-    return $content;
-}
 
 
 sub _generate_qz_js {
