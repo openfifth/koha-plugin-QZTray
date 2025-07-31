@@ -148,6 +148,9 @@ sub uninstall {
 sub _generate_qz_js {
     my ( $self, $certificate, $private_key ) = @_;
     
+    # Get the correct plugin HTTP path
+    my $plugin_path = $self->get_plugin_http_path();
+    
     # Escape JavaScript strings
     $certificate =~ s/\\/\\\\/g;
     $certificate =~ s/'/\\'/g;
@@ -168,9 +171,9 @@ window.qzConfig = {
 // Load QZ Tray dependencies and main library
 (function() {
     var scripts = [
-        '/plugin/Koha/Plugin/Com/OpenFifth/QZTray/js/dependencies/rsvp-3.1.0.min.js',
-        '/plugin/Koha/Plugin/Com/OpenFifth/QZTray/js/dependencies/sha-256.min.js',
-        '/plugin/Koha/Plugin/Com/OpenFifth/QZTray/js/qz-tray.js'
+        '$plugin_path/js/dependencies/rsvp-3.1.0.min.js',
+        '$plugin_path/js/dependencies/sha-256.min.js',
+        '$plugin_path/js/qz-tray.js'
     ];
     
     function loadScript(index) {
