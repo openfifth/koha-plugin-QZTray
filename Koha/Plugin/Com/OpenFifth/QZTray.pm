@@ -153,6 +153,11 @@ sub _generate_qz_js {
     my $sha256_js = $self->_read_js_file('js/dependencies/sha-256.min.js');
     my $qz_js = $self->_read_js_file('js/qz-tray.js');
     
+    # Debug: Log file sizes to help identify issues
+    warn "RSVP JS length: " . length($rsvp_js);
+    warn "SHA256 JS length: " . length($sha256_js);
+    warn "QZ JS length: " . length($qz_js);
+    
     # Escape JavaScript strings
     $certificate =~ s/\\/\\\\/g;
     $certificate =~ s/'/\\'/g;
@@ -196,10 +201,16 @@ sub _read_js_file {
     my $full_path = $self->mbf_path($file_path);
     
     if ( -f $full_path ) {
-        open my $fh, '<', $full_path or return "// Error reading $file_path";
+        open my $fh, '<:encoding(UTF-8)', $full_path or return "// Error reading $file_path";
         local $/;
         my $content = <$fh>;
         close $fh;
+        
+        # Clean up the content to avoid JavaScript syntax issues
+        $content =~ s/\r\n/\n/g;  # Normalize line endings
+        $content =~ s/\r/\n/g;    # Convert remaining CR to LF
+        $content = $content . "\n"; # Ensure ends with newline
+        
         return $content;
     }
     
