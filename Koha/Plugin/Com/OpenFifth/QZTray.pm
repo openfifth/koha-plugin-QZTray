@@ -37,7 +37,7 @@ sub configure {
     my $cgi = $self->{'cgi'};
 
     unless ( $cgi->param('save') ) {
-        my $template = $self->get_template( { file => 'configure.tt' } );
+        my $template = $self->get_template( { file => 'templates/configure.tt' } );
 
         $template->param(
             certificate_file => $self->retrieve_data('certificate_file') || '',
@@ -79,7 +79,7 @@ sub configure {
         });
 
         if ( @errors ) {
-            my $template = $self->get_template( { file => 'configure.tt' } );
+            my $template = $self->get_template( { file => 'templates/configure.tt' } );
             $template->param( errors => \@errors );
             $self->output_html( $template->output() );
         } else {
