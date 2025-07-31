@@ -148,8 +148,10 @@ sub uninstall {
 sub _generate_qz_js {
     my ( $self, $certificate, $private_key ) = @_;
     
-    # Get the correct plugin HTTP path
-    my $plugin_path = $self->get_plugin_http_path();
+    # Read JavaScript files and inline them
+    my $rsvp_js = $self->_read_js_file('js/dependencies/rsvp-3.1.0.min.js');
+    my $sha256_js = $self->_read_js_file('js/dependencies/sha-256.min.js');
+    my $qz_js = $self->_read_js_file('js/qz-tray.js');
     
     # Escape JavaScript strings
     $certificate =~ s/\\/\\\\/g;
@@ -168,39 +170,40 @@ window.qzConfig = {
     privateKey: '$private_key'
 };
 
-// Load QZ Tray dependencies and main library
+// Inline QZ Tray dependencies and main library
 (function() {
-    var scripts = [
-        '$plugin_path/js/dependencies/rsvp-3.1.0.min.js',
-        '$plugin_path/js/dependencies/sha-256.min.js',
-        '$plugin_path/js/qz-tray.js'
-    ];
+    // RSVP Library
+    $rsvp_js
     
-    function loadScript(index) {
-        if (index >= scripts.length) {
-            // All scripts loaded, initialize QZ Tray
-            if (typeof initQZTray === 'function') {
-                initQZTray();
-            }
-            return;
-        }
-        
-        var script = document.createElement('script');
-        script.src = scripts[index];
-        script.onload = function() {
-            loadScript(index + 1);
-        };
-        script.onerror = function() {
-            console.error('Failed to load QZ Tray script: ' + scripts[index]);
-            loadScript(index + 1);
-        };
-        document.head.appendChild(script);
+    // SHA-256 Library  
+    $sha256_js
+    
+    // QZ Tray Main Library
+    $qz_js
+    
+    // Initialize QZ Tray if available
+    if (typeof initQZTray === 'function') {
+        initQZTray();
     }
-    
-    loadScript(0);
 })();
 </script>
     };
+}
+
+sub _read_js_file {
+    my ( $self, $file_path ) = @_;
+    
+    my $full_path = $self->mbf_path($file_path);
+    
+    if ( -f $full_path ) {
+        open my $fh, '<', $full_path or return "// Error reading $file_path";
+        local $/;
+        my $content = <$fh>;
+        close $fh;
+        return $content;
+    }
+    
+    return "// File not found: $file_path";
 }
 
 1;
