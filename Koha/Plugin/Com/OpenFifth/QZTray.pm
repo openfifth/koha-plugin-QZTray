@@ -181,30 +181,31 @@ window.qzConfig = {
     
     // QZ Tray Main Library
     $qz_js
-    
-    // QZ Tray Cash Drawer Functionality
-    function displayError(err) {
-        console.error(err);
-    }
+})();
 
-    function chr(i) {
-        return String.fromCharCode(i);
-    }
+// QZ Tray Cash Drawer Functionality (global scope)
+function displayError(err) {
+    console.error(err);
+}
 
-    function drawerCode(printer) {
-        var code = [chr(27) + chr(112) + chr(48) + chr(55) + chr(121)]; //default code
-        if (printer.indexOf('Bixolon SRP-350') !== -1 ||
-            printer.indexOf('Epson TM-T88V') !== -1 ||
-            printer.indexOf('Metapace T') !== -1 ) {
-            code = [chr(27) + chr(112) + chr(48) + chr(55) + chr(121)];
-        }
-        if (printer.indexOf('Citizen CBM1000') !== -1) {
-            code = [chr(27) + chr(112) + chr(0) + chr(50) + chr(250)];
-        }
-        return code;
-    }
+function chr(i) {
+    return String.fromCharCode(i);
+}
 
-    function popDrawer(b) {
+function drawerCode(printer) {
+    var code = [chr(27) + chr(112) + chr(48) + chr(55) + chr(121)]; //default code
+    if (printer.indexOf('Bixolon SRP-350') !== -1 ||
+        printer.indexOf('Epson TM-T88V') !== -1 ||
+        printer.indexOf('Metapace T') !== -1 ) {
+        code = [chr(27) + chr(112) + chr(48) + chr(55) + chr(121)];
+    }
+    if (printer.indexOf('Citizen CBM1000') !== -1) {
+        code = [chr(27) + chr(112) + chr(0) + chr(50) + chr(250)];
+    }
+    return code;
+}
+
+function popDrawer(b) {
         qz.security.setCertificatePromise(function(resolve, reject) {
             resolve(window.qzConfig.certificate);
         });
@@ -237,18 +238,17 @@ window.qzConfig = {
             \$("#drawer-button").hide();
             if (b) \$(b).show();
         }).catch(displayError);
-    }
+}
 
-    // Wait for DOM to be ready
-    \$(document).ready(function() {
-        // Only add drawer button on main page for testing
-        if (window.location.href.indexOf('mainpage.pl') !== -1) {
-            console.log('QZ Tray: Adding test drawer button to mainpage');
-            // Add a test button to the main content area
-            \$('#main_intranet-main').prepend('<div style="margin: 10px 0;"><input type="button" class="btn btn-primary" id="drawer-button" value="Test Cash Drawer" onclick="popDrawer();return false;" /></div>');
-        }
-    });
-})();
+// Wait for DOM to be ready
+\$(document).ready(function() {
+    // Only add drawer button on main page for testing
+    if (window.location.href.indexOf('mainpage.pl') !== -1) {
+        console.log('QZ Tray: Adding test drawer button to mainpage');
+        // Add a test button to the main content area
+        \$('#main_intranet-main').prepend('<div style="margin: 10px 0;"><input type="button" class="btn btn-primary" id="drawer-button" value="Test Cash Drawer" onclick="popDrawer();return false;" /></div>');
+    }
+});
 </script>
     };
 }
