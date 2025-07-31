@@ -1,31 +1,82 @@
 [% USE KohaDates %]
 [% INCLUDE 'doc-head-open.inc' %]
-<title>Configure Plugin Name</title>
+<title>Configure QZ Tray Integration</title>
 [% INCLUDE 'doc-head-close.inc' %]
 </head>
 <body>
 [% INCLUDE 'header.inc' %]
 [% INCLUDE 'cat-search.inc' %]
 
-<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; Plugin Name &rsaquo; Configure</div>
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; QZ Tray Integration &rsaquo; Configure</div>
 
 <div class="main container-fluid">
     <div class="row">
         <div class="col-sm-10 col-sm-push-2">
             <main>
-                <h1>Plugin Name</h1>
-                <form method="post">
+                <h1>QZ Tray Integration Configuration</h1>
+                
+                [% IF errors %]
+                    <div class="alert alert-danger">
+                        <h4>Configuration errors:</h4>
+                        <ul>
+                            [% FOREACH error IN errors %]
+                                <li>[% error | html %]</li>
+                            [% END %]
+                        </ul>
+                    </div>
+                [% END %]
+                
+                <div class="alert alert-info">
+                    <h4>About QZ Tray Integration</h4>
+                    <p>This plugin integrates QZ Tray printing functionality into Koha. You need to upload your digital certificate and private key files to enable secure communication with QZ Tray.</p>
+                    <p>These files are typically provided when you set up QZ Tray for secure printing operations.</p>
+                </div>
+                
+                <form method="post" enctype="multipart/form-data">
                     <input type="hidden" name="class" value="[% CLASS %]"/>
                     <input type="hidden" name="method" value="[% METHOD %]"/>
                     <input type="hidden" name="save" value="1" />
+                    
                     <fieldset class="rows">
+                        <legend>Certificate Configuration</legend>
                         <ol>
                             <li>
-                                <label for="my_message">Message: </label>
-                                <input type="text" name="my_message" value="[% my_message %]" />
+                                <label for="certificate_upload">Digital Certificate File:</label>
+                                <input type="file" name="certificate_upload" id="certificate_upload" accept=".txt,.pem,.crt" />
+                                [% IF certificate_file %]
+                                    <div class="hint">Current certificate: Uploaded ([% certificate_file.length %] bytes)</div>
+                                [% ELSE %]
+                                    <div class="hint">No certificate uploaded</div>
+                                [% END %]
+                            </li>
+                            <li>
+                                <label for="private_key_upload">Private Key File:</label>
+                                <input type="file" name="private_key_upload" id="private_key_upload" accept=".key,.pem" />
+                                [% IF private_key_file %]
+                                    <div class="hint">Current private key: Uploaded ([% private_key_file.length %] bytes)</div>
+                                [% ELSE %]
+                                    <div class="hint">No private key uploaded</div>
+                                [% END %]
                             </li>
                         </ol>
                     </fieldset>
+                    
+                    <fieldset class="rows">
+                        <legend>Interface Settings</legend>
+                        <ol>
+                            <li>
+                                <label for="enable_staff">Enable in Staff Interface:</label>
+                                <input type="checkbox" name="enable_staff" id="enable_staff" value="1" [% IF enable_staff %]checked="checked"[% END %] />
+                                <div class="hint">Load QZ Tray JavaScript in the staff/intranet interface</div>
+                            </li>
+                            <li>
+                                <label for="enable_opac">Enable in OPAC:</label>
+                                <input type="checkbox" name="enable_opac" id="enable_opac" value="1" [% IF enable_opac %]checked="checked"[% END %] />
+                                <div class="hint">Load QZ Tray JavaScript in the public catalog (OPAC)</div>
+                            </li>
+                        </ol>
+                    </fieldset>
+                    
                     <fieldset class="action">
                         <input type="submit" value="Save configuration" />
                         <a class="cancel" href="/cgi-bin/koha/plugins/plugins-home.pl">Cancel</a>
