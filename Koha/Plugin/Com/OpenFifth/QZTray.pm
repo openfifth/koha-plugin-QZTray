@@ -151,6 +151,7 @@ sub _generate_qz_js {
     # Read JavaScript files and inline them
     my $rsvp_js = $self->_read_js_file('js/dependencies/rsvp-3.1.0.min.js');
     my $sha256_js = $self->_read_js_file('js/dependencies/sha-256.min.js');
+    my $jsrsasign_js = $self->_read_js_file('js/dependencies/jsrsasign-all-min.js');
     my $qz_js = $self->_read_js_file('js/qz-tray.js');
     
     
@@ -178,6 +179,9 @@ window.qzConfig = {
     
     // SHA-256 Library  
     $sha256_js
+    
+    // JSRSASign Library (for KEYUTIL and signing)
+    $jsrsasign_js
     
     // QZ Tray Main Library
     $qz_js
