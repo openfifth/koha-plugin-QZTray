@@ -45,6 +45,7 @@ sub configure {
             private_key_file => $self->retrieve_data('private_key_file') || '',
             enable_staff     => $self->retrieve_data('enable_staff') || 0,
             enable_opac      => $self->retrieve_data('enable_opac') || 0,
+            preferred_printer => $self->retrieve_data('preferred_printer') || '',
         );
 
         $self->output_html( $template->output() );
@@ -91,6 +92,7 @@ sub configure {
         $self->store_data({
             enable_staff => $cgi->param('enable_staff') || 0,
             enable_opac  => $cgi->param('enable_opac') || 0,
+            preferred_printer => $cgi->param('preferred_printer') || '',
         });
 
         if ( @errors ) {
@@ -164,6 +166,9 @@ sub _generate_qz_js {
     # Static routes are served at /api/v1/contrib/{namespace}/static{route}
     my $static_base = "/api/v1/contrib/" . $self->api_namespace . "/static";
     
+    # Get preferred printer setting
+    my $preferred_printer = $self->retrieve_data('preferred_printer') || '';
+    
     # Escape JavaScript strings
     $certificate =~ s/\\/\\\\/g;
     $certificate =~ s/'/\\'/g;
@@ -172,6 +177,10 @@ sub _generate_qz_js {
     $private_key =~ s/\\/\\\\/g;
     $private_key =~ s/'/\\'/g;
     $private_key =~ s/\n/\\n/g;
+    
+    $preferred_printer =~ s/\\/\\\\/g;
+    $preferred_printer =~ s/'/\\'/g;
+    $preferred_printer =~ s/\n/\\n/g;
     
     return qq{
 <!-- QZ Tray JavaScript Libraries (loaded as external files) -->
@@ -184,7 +193,8 @@ sub _generate_qz_js {
 // QZ Tray Configuration
 window.qzConfig = {
     certificate: '$certificate',
-    privateKey: '$private_key'
+    privateKey: '$private_key',
+    preferredPrinter: '$preferred_printer'
 };
 
 
@@ -199,6 +209,13 @@ function chr(i) {
 
 function drawerCode(printer) {
     var code = [chr(27) + chr(112) + chr(48) + chr(55) + chr(121)]; //default code
+    
+    // Handle case where printer is undefined or null
+    if (!printer || typeof printer !== 'string') {
+        console.log('No printer name provided, using default drawer code');
+        return code;
+    }
+    
     if (printer.indexOf('Bixolon SRP-350') !== -1 ||
         printer.indexOf('Epson TM-T88V') !== -1 ||
         printer.indexOf('Metapace T') !== -1 ) {
@@ -244,11 +261,24 @@ function popDrawer(b) {
         
         qz.websocket.connect().then(function () {
             console.log('QZ Tray connected!');
-            return qz.printers.getDefault()
+            
+            // Check if we have a preferred printer configured
+            var preferredPrinter = window.qzConfig.preferredPrinter;
+            if (preferredPrinter) {
+                console.log('Using preferred printer:', preferredPrinter);
+                return Promise.resolve(preferredPrinter);
+            } else {
+                console.log('No preferred printer, getting system default');
+                return qz.printers.getDefault();
+            }
         }).then(function (printer) {
-            var config = qz.configs.create(printer);
+            console.log('Using printer:', printer);
+            
+            // Use the printer name if available, otherwise use a generic config
+            var config = printer ? qz.configs.create(printer) : qz.configs.create('Generic');
             var data = drawerCode(printer);
-            console.log('Opening drawer for printer:', printer);
+            
+            console.log('Opening drawer for printer:', printer || 'Generic');
             return qz.print(config, data);
         }).then(function() {
             \$("#drawer-button").hide();

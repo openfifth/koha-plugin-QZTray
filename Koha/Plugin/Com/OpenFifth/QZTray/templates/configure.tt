@@ -63,6 +63,24 @@
                     </fieldset>
                     
                     <fieldset class="rows">
+                        <legend>Printer Settings</legend>
+                        <ol>
+                            <li>
+                                <label for="preferred_printer">Cash Drawer Printer:</label>
+                                <select name="preferred_printer" id="preferred_printer">
+                                    <option value="">Use system default printer</option>
+                                    [% IF preferred_printer %]
+                                        <option value="[% preferred_printer | html %]" selected="selected">[% preferred_printer | html %]</option>
+                                    [% END %]
+                                </select>
+                                <button type="button" id="refresh_printers">Refresh Printer List</button>
+                                <div class="hint">Select the printer connected to your cash drawer</div>
+                                <div id="printer_status" class="hint"></div>
+                            </li>
+                        </ol>
+                    </fieldset>
+                    
+                    <fieldset class="rows">
                         <legend>Interface Settings</legend>
                         <ol>
                             <li>
@@ -90,4 +108,84 @@
         </div>
     </div>
 </div>
+
+<script type="text/javascript">
+$(document).ready(function() {
+    console.log('Configuration page ready');
+    console.log('qz available:', typeof qz !== 'undefined');
+    console.log('KEYUTIL available:', typeof KEYUTIL !== 'undefined');
+    
+    // Set up printer refresh functionality
+    setupPrinterRefresh();
+    
+    function setupPrinterRefresh() {
+        $('#refresh_printers').click(function() {
+            refreshPrinterList();
+        });
+        
+        // Show initial status
+        $('#printer_status').text('Click "Refresh Printer List" to detect printers');
+    }
+    
+    function refreshPrinterList() {
+        $('#printer_status').text('Connecting to QZ Tray...').removeClass('error');
+        $('#refresh_printers').prop('disabled', true);
+        
+        if (typeof qz === 'undefined') {
+            $('#printer_status').text('QZ Tray libraries not loaded. Please enable the plugin in the staff interface and try again.').addClass('error');
+            $('#refresh_printers').prop('disabled', false);
+            return;
+        }
+        
+        // Set up minimal QZ Tray configuration for printer detection
+        qz.security.setCertificatePromise(function(resolve, reject) {
+            resolve(''); // Empty certificate for printer detection
+        });
+        
+        qz.security.setSignaturePromise(function(toSign) {
+            return function(resolve, reject) {
+                resolve(''); // Empty signature for printer detection
+            };
+        });
+        
+        qz.websocket.connect().then(function() {
+            $('#printer_status').text('Connected to QZ Tray, fetching printers...');
+            return qz.printers.find();
+        }).then(function(printers) {
+            updatePrinterList(printers);
+            $('#printer_status').text('Found ' + printers.length + ' printer(s)');
+        }).catch(function(error) {
+            console.error('QZ Tray error:', error);
+            $('#printer_status').text('Error: ' + error.message).addClass('error');
+        }).finally(function() {
+            $('#refresh_printers').prop('disabled', false);
+            if (typeof qz !== 'undefined' && qz.websocket) {
+                qz.websocket.disconnect();
+            }
+        });
+    }
+    
+    function updatePrinterList(printers) {
+        var $select = $('#preferred_printer');
+        var currentValue = $select.val();
+        
+        // Clear existing options except the default
+        $select.find('option:not([value=""])').remove();
+        
+        // Add printers to the list
+        printers.forEach(function(printer) {
+            var $option = $('<option></option>')
+                .attr('value', printer)
+                .text(printer);
+            
+            if (printer === currentValue) {
+                $option.prop('selected', true);
+            }
+            
+            $select.append($option);
+        });
+    }
+});
+</script>
+
 [% INCLUDE 'intranet-bottom.inc' %]
