@@ -1,0 +1,92 @@
+{
+  "/certificate": {
+    "get": {
+      "x-mojo-to": "Com::OpenFifth::QZTray::Controllers::Auth#getCertificate",
+      "operationId": "getCertificate",
+      "tags": [
+        "qztray-auth"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "responses": {
+        "200": {
+          "description": "Certificate retrieved successfully",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "certificate": {
+                "type": "string",
+                "description": "The PEM formatted digital certificate"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "Certificate not configured"
+        },
+        "500": {
+          "description": "Internal server error"
+        }
+      }
+    }
+  },
+  "/sign": {
+    "post": {
+      "x-mojo-to": "Com::OpenFifth::QZTray::Controllers::Auth#signMessage",
+      "operationId": "signMessage",
+      "tags": [
+        "qztray-auth"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "consumes": [
+        "application/json"
+      ],
+      "parameters": [
+        {
+          "name": "body",
+          "in": "body",
+          "required": true,
+          "description": "Message to sign",
+          "schema": {
+            "type": "object",
+            "required": [
+              "message"
+            ],
+            "properties": {
+              "message": {
+                "type": "string",
+                "description": "The message to be signed"
+              }
+            }
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Message signed successfully",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "signature": {
+                "type": "string",
+                "description": "Base64 encoded signature"
+              }
+            }
+          }
+        },
+        "400": {
+          "description": "Missing message parameter"
+        },
+        "404": {
+          "description": "Private key not configured"
+        },
+        "500": {
+          "description": "Signing failed"
+        }
+      }
+    }
+  }
+}

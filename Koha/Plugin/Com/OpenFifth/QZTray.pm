@@ -110,12 +110,13 @@ sub intranet_js {
     
     return '' unless $self->retrieve_data('enable_staff');
     
+    # Check if we have certificate and private key configured
     my $certificate = $self->retrieve_data('certificate_file') || '';
     my $private_key = $self->retrieve_data('private_key_file') || '';
     
     return '' unless ( $certificate && $private_key );
     
-    return $self->_generate_qz_js( $certificate, $private_key );
+    return $self->_generate_qz_js();
 }
 
 sub opac_js {
@@ -123,12 +124,13 @@ sub opac_js {
     
     return '' unless $self->retrieve_data('enable_opac');
     
+    # Check if we have certificate and private key configured
     my $certificate = $self->retrieve_data('certificate_file') || '';
     my $private_key = $self->retrieve_data('private_key_file') || '';
     
     return '' unless ( $certificate && $private_key );
     
-    return $self->_generate_qz_js( $certificate, $private_key );
+    return $self->_generate_qz_js();
 }
 
 sub install {
@@ -158,10 +160,17 @@ sub static_routes {
     return $spec;
 }
 
+sub api_routes {
+    my ( $self, $args ) = @_;
+    my $spec_str = $self->mbf_read('api/openapi.json');
+    my $spec = decode_json($spec_str);
+    return $spec;
+}
+
 
 
 sub _generate_qz_js {
-    my ( $self, $certificate, $private_key ) = @_;
+    my ( $self ) = @_;
     
     # Static routes are served at /api/v1/contrib/{namespace}/static{route}
     my $static_base = "/api/v1/contrib/" . $self->api_namespace . "/static";
@@ -169,18 +178,13 @@ sub _generate_qz_js {
     # Get preferred printer setting
     my $preferred_printer = $self->retrieve_data('preferred_printer') || '';
     
-    # Escape JavaScript strings
-    $certificate =~ s/\\/\\\\/g;
-    $certificate =~ s/'/\\'/g;
-    $certificate =~ s/\n/\\n/g;
-    
-    $private_key =~ s/\\/\\\\/g;
-    $private_key =~ s/'/\\'/g;
-    $private_key =~ s/\n/\\n/g;
-    
+    # Escape JavaScript strings for preferred printer only
     $preferred_printer =~ s/\\/\\\\/g;
     $preferred_printer =~ s/'/\\'/g;
     $preferred_printer =~ s/\n/\\n/g;
+    
+    # API routes are served at /api/v1/contrib/{namespace}{route}
+    my $api_base = "/api/v1/contrib/" . $self->api_namespace;
     
     return qq{
 <!-- QZ Tray JavaScript Libraries (loaded as external files) -->
@@ -192,8 +196,7 @@ sub _generate_qz_js {
 <script type="text/javascript">
 // QZ Tray Configuration
 window.qzConfig = {
-    certificate: '$certificate',
-    privateKey: '$private_key',
+    apiBase: '$api_base',
     preferredPrinter: '$preferred_printer'
 };
 
@@ -228,34 +231,50 @@ function drawerCode(printer) {
 }
 
 function popDrawer(b) {
+        // Set up certificate loading from API
         qz.security.setCertificatePromise(function(resolve, reject) {
-            resolve(window.qzConfig.certificate);
+            fetch(window.qzConfig.apiBase + '/certificate', {
+                method: 'GET',
+                cache: 'no-store',
+                credentials: 'same-origin'
+            }).then(function(response) {
+                if (response.ok) {
+                    return response.text();
+                } else {
+                    throw new Error('Certificate not configured');
+                }
+            }).then(function(certificate) {
+                resolve(certificate);
+            }).catch(function(error) {
+                console.error('Failed to load certificate:', error);
+                // Fall back to empty string for testing
+                resolve('');
+            });
         });
         
+        // Set up message signing via API
         qz.security.setSignaturePromise(function(toSign) {
             return function(resolve, reject) {
-                try {
-                    // Check if we have real certificate/key or just test data
-                    if (window.qzConfig.certificate.length < 100 || window.qzConfig.privateKey.length < 100) {
-                        // Using test data, skip signing
-                        resolve('');
-                        return;
+                fetch(window.qzConfig.apiBase + '/sign', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ message: toSign })
+                }).then(function(response) {
+                    if (response.ok) {
+                        return response.text();
+                    } else {
+                        throw new Error('Signing failed');
                     }
-                    
-                    if (typeof KEYUTIL === 'undefined') {
-                        resolve('');
-                        return;
-                    }
-                    var pk = KEYUTIL.getKey(window.qzConfig.privateKey);
-                    var sig = new KJUR.crypto.Signature({"alg": "SHA1withRSA"});
-                    sig.init(pk);
-                    sig.updateString(toSign);
-                    var hex = sig.sign();
-                    resolve(stob64(hextorstr(hex)));
-                } catch (err) {
-                    // For testing, just use empty signature
+                }).then(function(signature) {
+                    resolve(signature);
+                }).catch(function(error) {
+                    console.error('Failed to sign message:', error);
+                    // Fall back to empty signature for testing
                     resolve('');
-                }
+                });
             };
         });
         
@@ -289,6 +308,8 @@ function popDrawer(b) {
 // Wait for DOM to be ready
 \$(document).ready(function() {
     // Debug: Check if JavaScript libraries are loading
+    console.log('QZ Tray API Base:', window.qzConfig.apiBase);
+    console.log('Preferred Printer:', window.qzConfig.preferredPrinter);
     console.log('KEYUTIL available:', typeof KEYUTIL !== 'undefined');
     console.log('KJUR available:', typeof KJUR !== 'undefined');
     console.log('RSAKey available:', typeof RSAKey !== 'undefined');
