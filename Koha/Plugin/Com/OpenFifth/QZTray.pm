@@ -283,6 +283,7 @@ function popDrawer(s, h) {
     qz.websocket
         .connect()
         .then(function() {
+            console.log('QZ Tray connected successfully');
             // Check if we have a preferred printer configured
             var preferredPrinter = window.qzConfig.preferredPrinter;
             if (preferredPrinter) {
@@ -297,11 +298,15 @@ function popDrawer(s, h) {
             return qz.print(config, data);
         })
         .then(function() {
+            console.log('Cash drawer command sent successfully');
             \$('.' + h).hide();
             \$('.' + s).show();
             return qz.websocket.disconnect();
         })
-        .catch(displayError);
+        .catch(function(error) {
+            console.log('QZ Tray operation failed:', error.message || error);
+            displayError(error);
+        });
 }
 
 // array used to hide default button, add cash drawer button (renamed to same as default button)
@@ -330,17 +335,20 @@ var buttonscontinue = [
         if (window.location.href.indexOf(b[0]) !== -1) {
             \$(b[1]).each(function() {
                 var r = Math.floor(Math.random() * 100000) + 1;
+                var originalClasses = \$(this).attr('class') || '';
+                var originalType = this.type || 'button';
+                
                 \$(this).text(b[3]);
                 \$(this).prop('value', b[3]);
                 \$(this).addClass('s' + r);
 
                 \$(\$(this)).hide();
                 \$(
-                    '<input type="button" class="btn btn-small drawer-button' +
+                    '<input type="' + originalType + '" class="' + originalClasses + ' drawer-button' +
                     r +
                     '" id="drawer-button" value="' +
                     b[2] +
-                    '" type="submit" onclick="popDrawer(\\'s' +
+                    '" onclick="popDrawer(\\'s' +
                     r +
                     "\\',\\'drawer-button" +
                     r +
