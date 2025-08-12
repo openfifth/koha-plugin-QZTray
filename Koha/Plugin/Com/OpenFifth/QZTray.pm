@@ -230,98 +230,125 @@ function drawerCode(printer) {
     return code;
 }
 
-function popDrawer(b) {
-        // Set up certificate loading from API
-        qz.security.setCertificatePromise(function(resolve, reject) {
-            fetch(window.qzConfig.apiBase + '/certificate', {
-                method: 'GET',
-                cache: 'no-store',
-                credentials: 'same-origin'
+// get signed certificate to suppress security prompts, connect to qz tray app
+// select default printer, find drawer open code using drawerCode(), send command to the printer
+// after drawer has opened hide the drawer open button and show the default button for
+// the given page - element selector is passed in parameter s, h for hide class
+function popDrawer(s, h) {
+    // Set up certificate loading from API (secure)
+    qz.security.setCertificatePromise(function(resolve, reject) {
+        fetch(window.qzConfig.apiBase + '/certificate', {
+            method: 'GET',
+            cache: 'no-store',
+            credentials: 'same-origin'
+        }).then(function(response) {
+            if (response.ok) {
+                return response.text();
+            } else {
+                throw new Error('Certificate not configured');
+            }
+        }).then(function(certificate) {
+            resolve(certificate);
+        }).catch(function(error) {
+            console.error('Failed to load certificate:', error);
+            resolve('');
+        });
+    });
+    
+    // Set up message signing via API (secure)
+    qz.security.setSignaturePromise(function(toSign) {
+        return function(resolve, reject) {
+            fetch(window.qzConfig.apiBase + '/sign', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ message: toSign })
             }).then(function(response) {
                 if (response.ok) {
                     return response.text();
                 } else {
-                    throw new Error('Certificate not configured');
+                    throw new Error('Signing failed');
                 }
-            }).then(function(certificate) {
-                resolve(certificate);
+            }).then(function(signature) {
+                resolve(signature);
             }).catch(function(error) {
-                console.error('Failed to load certificate:', error);
-                // Fall back to empty string for testing
+                console.error('Failed to sign message:', error);
                 resolve('');
             });
-        });
-        
-        // Set up message signing via API
-        qz.security.setSignaturePromise(function(toSign) {
-            return function(resolve, reject) {
-                fetch(window.qzConfig.apiBase + '/sign', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({ message: toSign })
-                }).then(function(response) {
-                    if (response.ok) {
-                        return response.text();
-                    } else {
-                        throw new Error('Signing failed');
-                    }
-                }).then(function(signature) {
-                    resolve(signature);
-                }).catch(function(error) {
-                    console.error('Failed to sign message:', error);
-                    // Fall back to empty signature for testing
-                    resolve('');
-                });
-            };
-        });
-        
-        qz.websocket.connect().then(function () {
-            console.log('QZ Tray connected!');
-            
+        };
+    });
+    
+    qz.websocket
+        .connect()
+        .then(function() {
             // Check if we have a preferred printer configured
             var preferredPrinter = window.qzConfig.preferredPrinter;
             if (preferredPrinter) {
-                console.log('Using preferred printer:', preferredPrinter);
                 return Promise.resolve(preferredPrinter);
             } else {
-                console.log('No preferred printer, getting system default');
                 return qz.printers.getDefault();
             }
-        }).then(function (printer) {
-            console.log('Using printer:', printer);
-            
-            // Use the printer name if available, otherwise use a generic config
-            var config = printer ? qz.configs.create(printer) : qz.configs.create('Generic');
+        })
+        .then(function(printer) {
+            var config = qz.configs.create(printer);
             var data = drawerCode(printer);
-            
-            console.log('Opening drawer for printer:', printer || 'Generic');
             return qz.print(config, data);
-        }).then(function() {
-            \$("#drawer-button").hide();
-            if (b) \$(b).show();
-        }).catch(displayError);
+        })
+        .then(function() {
+            \$('.' + h).hide();
+            \$('.' + s).show();
+            return qz.websocket.disconnect();
+        })
+        .catch(displayError);
 }
+
+// array used to hide default button, add cash drawer button (renamed to same as default button)
+// hide cash drawer button after clicking, rename default button and show it
+// [0] - partial url for matching pages
+// [1] - element defining the default button for a given page
+// [2] - text to use when renaming button that opens cash drawer
+// [3] - text to use when renaming default button
+var buttonscontinue = [
+    ['pos/pay.pl', '#submitbutton', 'Confirm', 'Commit payment'],
+    ['pos/register.pl', '#pos_cashup', 'Record cashup', 'Continue cashup'],
+    ['pos/register.pl', '#pos_refund_confirm', 'Refund', 'Commit refund'],
+    ['pos/registers.pl', '.cashup_all', 'Cashup all', 'Continue cashup'],
+    ['pos/registers.pl', 'button[data-register\$="Till"]', 'Start cashup', 'Continue cashup'],
+    ['members/boraccount.pl', '#borr_payout_confirm', 'Confirm', 'Commit payout'],
+    ['members/paycollect.pl', '#paysubmit', 'Confirm', 'Commit payment'],
+];
 
 // Wait for DOM to be ready
 \$(document).ready(function() {
-    // Debug: Check if JavaScript libraries are loading
-    console.log('QZ Tray API Base:', window.qzConfig.apiBase);
-    console.log('Preferred Printer:', window.qzConfig.preferredPrinter);
-    console.log('KEYUTIL available:', typeof KEYUTIL !== 'undefined');
-    console.log('KJUR available:', typeof KJUR !== 'undefined');
-    console.log('RSAKey available:', typeof RSAKey !== 'undefined');
-    console.log('Sha256 available:', typeof Sha256 !== 'undefined');
-    console.log('CryptoJS available:', typeof CryptoJS !== 'undefined');
-    
-    // Only add drawer button on main page for testing
-    if (window.location.href.indexOf('mainpage.pl') !== -1) {
-        console.log('QZ Tray: Adding test drawer button to mainpage');
-        // Add a test button to the main content area
-        \$('#main_intranet-main').prepend('<div style="margin: 10px 0;"><input type="button" class="btn btn-primary" id="drawer-button" value="Test Cash Drawer" onclick="popDrawer();return false;" /></div>');
-    }
+    // function to match on a page in the buttonscontinue array
+    // when a match is found, change the text of the default button and hide it
+    // add a new button with the original text of the default button to open the till drawer
+    // adds class to buttons containing a random number which is passed to popDrawer to show/hide correct buttons on click
+    buttonscontinue.forEach(function(b, i) {
+        if (window.location.href.indexOf(b[0]) !== -1) {
+            \$(b[1]).each(function() {
+                var r = Math.floor(Math.random() * 100000) + 1;
+                \$(this).text(b[3]);
+                \$(this).prop('value', b[3]);
+                \$(this).addClass('s' + r);
+
+                \$(\$(this)).hide();
+                \$(
+                    '<input type="button" class="btn btn-small drawer-button' +
+                    r +
+                    '" id="drawer-button" value="' +
+                    b[2] +
+                    '" type="submit" onclick="popDrawer(\\'s' +
+                    r +
+                    "\\',\\'drawer-button" +
+                    r +
+                    '\\');return false;" />'
+                ).insertBefore(\$(this));
+            });
+        }
+    });
 });
 </script>
     };
