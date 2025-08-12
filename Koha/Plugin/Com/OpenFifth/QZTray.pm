@@ -43,8 +43,6 @@ sub configure {
         $template->param(
             certificate_file => $self->retrieve_data('certificate_file') || '',
             private_key_file => $self->retrieve_data('private_key_file') || '',
-            enable_staff     => $self->retrieve_data('enable_staff') || 0,
-            enable_opac      => $self->retrieve_data('enable_opac') || 0,
             preferred_printer => $self->retrieve_data('preferred_printer') || '',
         );
 
@@ -90,8 +88,6 @@ sub configure {
 
         # Store other configuration
         $self->store_data({
-            enable_staff => $cgi->param('enable_staff') || 0,
-            enable_opac  => $cgi->param('enable_opac') || 0,
             preferred_printer => $cgi->param('preferred_printer') || '',
         });
 
@@ -108,9 +104,7 @@ sub configure {
 sub intranet_js {
     my ( $self ) = @_;
     
-    return '' unless $self->retrieve_data('enable_staff');
-    
-    # Check if we have certificate and private key configured
+    # Always load in staff interface when plugin is enabled and configured
     my $certificate = $self->retrieve_data('certificate_file') || '';
     my $private_key = $self->retrieve_data('private_key_file') || '';
     
@@ -119,19 +113,6 @@ sub intranet_js {
     return $self->_generate_qz_js();
 }
 
-sub opac_js {
-    my ( $self ) = @_;
-    
-    return '' unless $self->retrieve_data('enable_opac');
-    
-    # Check if we have certificate and private key configured
-    my $certificate = $self->retrieve_data('certificate_file') || '';
-    my $private_key = $self->retrieve_data('private_key_file') || '';
-    
-    return '' unless ( $certificate && $private_key );
-    
-    return $self->_generate_qz_js();
-}
 
 sub install {
     my ( $self, $args ) = @_;

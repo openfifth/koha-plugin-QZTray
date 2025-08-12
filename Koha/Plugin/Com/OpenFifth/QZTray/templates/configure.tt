@@ -80,21 +80,6 @@
                         </ol>
                     </fieldset>
                     
-                    <fieldset class="rows">
-                        <legend>Interface Settings</legend>
-                        <ol>
-                            <li>
-                                <label for="enable_staff">Enable in Staff Interface:</label>
-                                <input type="checkbox" name="enable_staff" id="enable_staff" value="1" [% IF enable_staff %]checked="checked"[% END %] />
-                                <div class="hint">Load QZ Tray JavaScript in the staff/intranet interface</div>
-                            </li>
-                            <li>
-                                <label for="enable_opac">Enable in OPAC:</label>
-                                <input type="checkbox" name="enable_opac" id="enable_opac" value="1" [% IF enable_opac %]checked="checked"[% END %] />
-                                <div class="hint">Load QZ Tray JavaScript in the public catalog (OPAC)</div>
-                            </li>
-                        </ol>
-                    </fieldset>
                     
                     <fieldset class="action">
                         <input type="submit" value="Save configuration" />
