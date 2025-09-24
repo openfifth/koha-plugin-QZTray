@@ -8,7 +8,7 @@ use C4::Context;
 use Koha::DateUtils;
 use JSON qw( decode_json );
 
-our $VERSION = '1.0.1';
+our $VERSION         = '1.0.1';
 our $MINIMUM_VERSION = "22.05.00.000";
 
 our $metadata = {
@@ -38,31 +38,37 @@ sub configure {
     my $cgi = $self->{'cgi'};
 
     unless ( $cgi->param('save') ) {
-        my $template = $self->get_template( { file => 'templates/configure.tt' } );
+        my $template =
+          $self->get_template( { file => 'templates/configure.tt' } );
 
         $template->param(
-            certificate_file => $self->retrieve_data('certificate_file') || '',
-            private_key_file => $self->retrieve_data('private_key_file') || '',
-            preferred_printer => $self->retrieve_data('preferred_printer') || '',
+            certificate_file  => $self->retrieve_data('certificate_file') || '',
+            private_key_file  => $self->retrieve_data('private_key_file') || '',
+            preferred_printer => $self->retrieve_data('preferred_printer')
+              || '',
         );
 
         $self->output_html( $template->output() );
-    } else {
+    }
+    else {
         my @errors;
 
         # Handle certificate file upload
         my $cert_upload = $cgi->upload('certificate_upload');
-        if ( $cert_upload ) {
+        if ($cert_upload) {
             if ( not defined $cert_upload ) {
-                push @errors, "Failed to get certificate file: " . $cgi->cgi_error;
-            } else {
+                push @errors,
+                  "Failed to get certificate file: " . $cgi->cgi_error;
+            }
+            else {
                 my $cert_content;
                 while ( my $line = <$cert_upload> ) {
                     $cert_content .= $line;
                 }
-                if ( $cert_content ) {
-                    $self->store_data({ certificate_file => $cert_content });
-                } else {
+                if ($cert_content) {
+                    $self->store_data( { certificate_file => $cert_content } );
+                }
+                else {
                     push @errors, "Certificate file appears to be empty";
                 }
             }
@@ -70,49 +76,55 @@ sub configure {
 
         # Handle private key file upload
         my $key_upload = $cgi->upload('private_key_upload');
-        if ( $key_upload ) {
+        if ($key_upload) {
             if ( not defined $key_upload ) {
-                push @errors, "Failed to get private key file: " . $cgi->cgi_error;
-            } else {
+                push @errors,
+                  "Failed to get private key file: " . $cgi->cgi_error;
+            }
+            else {
                 my $key_content;
                 while ( my $line = <$key_upload> ) {
                     $key_content .= $line;
                 }
-                if ( $key_content ) {
-                    $self->store_data({ private_key_file => $key_content });
-                } else {
+                if ($key_content) {
+                    $self->store_data( { private_key_file => $key_content } );
+                }
+                else {
                     push @errors, "Private key file appears to be empty";
                 }
             }
         }
 
         # Store other configuration
-        $self->store_data({
-            preferred_printer => $cgi->param('preferred_printer') || '',
-        });
+        $self->store_data(
+            {
+                preferred_printer => $cgi->param('preferred_printer') || '',
+            }
+        );
 
-        if ( @errors ) {
-            my $template = $self->get_template( { file => 'templates/configure.tt' } );
+        if (@errors) {
+            my $template =
+              $self->get_template( { file => 'templates/configure.tt' } );
             $template->param( errors => \@errors );
             $self->output_html( $template->output() );
-        } else {
+        }
+        else {
             $self->go_home();
         }
     }
 }
 
 sub intranet_js {
-    my ( $self ) = @_;
-    
+    my ($self) = @_;
+
     # Always load in staff interface when plugin is enabled and configured
     my $certificate = $self->retrieve_data('certificate_file') || '';
     my $private_key = $self->retrieve_data('private_key_file') || '';
-    
+
     return '' unless ( $certificate && $private_key );
-    
+
     return $self->_generate_qz_js();
 }
-
 
 sub install {
     my ( $self, $args ) = @_;
@@ -137,36 +149,34 @@ sub api_namespace {
 sub static_routes {
     my ( $self, $args ) = @_;
     my $spec_str = $self->mbf_read('api/staticapi.json');
-    my $spec = decode_json($spec_str);
+    my $spec     = decode_json($spec_str);
     return $spec;
 }
 
 sub api_routes {
     my ( $self, $args ) = @_;
     my $spec_str = $self->mbf_read('api/openapi.json');
-    my $spec = decode_json($spec_str);
+    my $spec     = decode_json($spec_str);
     return $spec;
 }
 
-
-
 sub _generate_qz_js {
-    my ( $self ) = @_;
-    
+    my ($self) = @_;
+
     # Static routes are served at /api/v1/contrib/{namespace}/static{route}
     my $static_base = "/api/v1/contrib/" . $self->api_namespace . "/static";
-    
+
     # Get preferred printer setting
     my $preferred_printer = $self->retrieve_data('preferred_printer') || '';
-    
+
     # Escape JavaScript strings for preferred printer only
     $preferred_printer =~ s/\\/\\\\/g;
     $preferred_printer =~ s/'/\\'/g;
     $preferred_printer =~ s/\n/\\n/g;
-    
+
     # API routes are served at /api/v1/contrib/{namespace}{route}
     my $api_base = "/api/v1/contrib/" . $self->api_namespace;
-    
+
     return qq{
 <!-- QZ Tray JavaScript Libraries (loaded as external files) -->
 <script type="text/javascript" src="$static_base/js/rsvp-3.1.0.min.js"></script>
@@ -345,29 +355,30 @@ var buttonscontinue = [
 
 sub _read_js_file {
     my ( $self, $file_path ) = @_;
-    
+
     # Use mbf_read to read file from plugin bundle
     my $content = $self->mbf_read($file_path);
-    
-    if ( $content ) {
+
+    if ($content) {
+
         # Clean up the content to avoid JavaScript syntax issues
-        $content =~ s/\r\n/\n/g;  # Normalize line endings
-        $content =~ s/\r/\n/g;    # Convert remaining CR to LF
-        $content = $content . "\n"; # Ensure ends with newline
-        
+        $content =~ s/\r\n/\n/g;       # Normalize line endings
+        $content =~ s/\r/\n/g;         # Convert remaining CR to LF
+        $content = $content . "\n";    # Ensure ends with newline
+
         return $content;
     }
-    
+
     return "// File not found via mbf_read: $file_path";
 }
 
 sub _escape_js_content {
     my ( $self, $content ) = @_;
-    
+
     # Convert any non-ASCII characters to JavaScript Unicode escape sequences
     # This handles any Unicode character that might cause syntax errors
     $content =~ s/([^\x00-\x7F])/sprintf("\\u%04X", ord($1))/ge;
-    
+
     return $content;
 }
 
