@@ -8,7 +8,7 @@ use C4::Context;
 use Koha::DateUtils;
 use JSON qw( decode_json );
 
-our $VERSION         = '1.0.1';
+our $VERSION         = '1.0.2';
 our $MINIMUM_VERSION = "22.05.00.000";
 
 our $metadata = {
@@ -16,7 +16,7 @@ our $metadata = {
     author          => 'OpenFifth',
     description     => 'QZ Tray printing integration for Koha',
     date_authored   => '2025-01-31',
-    date_updated    => '2025-08-13',
+    date_updated    => '2025-09-24',
     minimum_version => $MINIMUM_VERSION,
     maximum_version => undef,
     version         => $VERSION,
