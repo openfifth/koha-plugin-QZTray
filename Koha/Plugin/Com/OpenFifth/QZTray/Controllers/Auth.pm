@@ -15,7 +15,10 @@ sub getCertificate {
 
         unless ($certificate) {
             return $c->render(
-                openapi => { error => 'Certificate not configured' },
+                json => {
+                    error => 'Certificate not configured',
+                    error_code => 'CERTIFICATE_NOT_CONFIGURED'
+                },
                 status  => 404
             );
         }
@@ -33,7 +36,10 @@ sub getCertificate {
             endpoint => '/certificate'
         });
         return $c->render(
-            openapi => { error => 'Internal server error' },
+            json => {
+                error => 'Internal server error',
+                error_code => 'CERTIFICATE_RETRIEVAL_FAILED'
+            },
             status  => 500
         );
     };
@@ -48,7 +54,10 @@ sub signMessage {
 
         unless ($private_key_pem) {
             return $c->render(
-                openapi => { error => 'Private key not configured' },
+                json => {
+                    error => 'Private key not configured',
+                    error_code => 'PRIVATE_KEY_NOT_CONFIGURED'
+                },
                 status  => 404
             );
         }
@@ -58,7 +67,10 @@ sub signMessage {
 
         unless ($message) {
             return $c->render(
-                openapi => { error => 'Missing message parameter' },
+                json => {
+                    error => 'Missing message parameter',
+                    error_code => 'MESSAGE_PARAMETER_MISSING'
+                },
                 status  => 400
             );
         }
@@ -88,7 +100,10 @@ sub signMessage {
             endpoint => '/sign'
         });
         return $c->render(
-            openapi => { error => 'Signing failed: ' . $_ },
+            json => {
+                error => 'Signing failed: ' . $_,
+                error_code => 'MESSAGE_SIGNING_FAILED'
+            },
             status  => 500
         );
     };
