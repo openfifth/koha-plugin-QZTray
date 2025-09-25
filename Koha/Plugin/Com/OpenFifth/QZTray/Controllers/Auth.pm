@@ -26,7 +26,12 @@ sub getCertificate {
         );
     }
     catch {
-        warn "Error retrieving certificate: $_";
+        my $plugin = Koha::Plugin::Com::OpenFifth::QZTray->new();
+        $plugin->_log_event('error', 'Certificate retrieval failed', {
+            error => "$_",
+            action => 'getCertificate',
+            endpoint => '/certificate'
+        });
         return $c->render(
             openapi => { error => 'Internal server error' },
             status  => 500
@@ -76,7 +81,12 @@ sub signMessage {
         );
     }
     catch {
-        warn "Error signing message: $_";
+        my $plugin = Koha::Plugin::Com::OpenFifth::QZTray->new();
+        $plugin->_log_event('error', 'Message signing failed', {
+            error => "$_",
+            action => 'signMessage',
+            endpoint => '/sign'
+        });
         return $c->render(
             openapi => { error => 'Signing failed: ' . $_ },
             status  => 500

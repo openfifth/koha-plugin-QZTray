@@ -11,6 +11,7 @@ use Crypt::OpenSSL::RSA;
 use Crypt::OpenSSL::X509;
 use Koha::Encryption;
 use Koha::Exceptions;
+use Koha::Logger;
 use Try::Tiny;
 
 our $VERSION         = '1.0.2';
@@ -91,9 +92,23 @@ sub configure {
                 if ($validation_result->{valid}) {
                     unless ($self->store_encrypted_data('certificate_file', $cert_content)) {
                         push @errors, 'Failed to securely store certificate file';
+                        $self->_log_event('error', 'Certificate storage failed', {
+                            error_code => 'CERT_STORAGE_FAILED',
+                            action => 'certificate_upload'
+                        });
+                    } else {
+                        $self->_log_event('info', 'Certificate uploaded successfully', {
+                            action => 'certificate_upload',
+                            file_size => length($cert_content)
+                        });
                     }
                 } else {
                     push @errors, $validation_result->{error};
+                    $self->_log_event('warn', 'Certificate validation failed', {
+                        error_code => 'CERT_VALIDATION_FAILED',
+                        error => $validation_result->{error},
+                        action => 'certificate_upload'
+                    });
                 }
             }
         }
@@ -115,20 +130,44 @@ sub configure {
                 if ($validation_result->{valid}) {
                     unless ($self->store_encrypted_data('private_key_file', $key_content)) {
                         push @errors, 'Failed to securely store private key file';
+                        $self->_log_event('error', 'Private key storage failed', {
+                            error_code => 'KEY_STORAGE_FAILED',
+                            action => 'private_key_upload'
+                        });
+                    } else {
+                        $self->_log_event('info', 'Private key uploaded successfully', {
+                            action => 'private_key_upload',
+                            file_size => length($key_content)
+                        });
                     }
                 } else {
                     push @errors, $validation_result->{error};
+                    $self->_log_event('warn', 'Private key validation failed', {
+                        error_code => 'KEY_VALIDATION_FAILED',
+                        error => $validation_result->{error},
+                        action => 'private_key_upload'
+                    });
                 }
             }
         }
 
         # Validate and store printer configuration
+        my $old_printer = $self->retrieve_data('preferred_printer') || '';
         my $printer_name = $self->_sanitize_printer_name($cgi->param('preferred_printer') || '');
         $self->store_data(
             {
                 preferred_printer => $printer_name,
             }
         );
+
+        # Log printer configuration changes
+        if ($old_printer ne $printer_name) {
+            $self->_log_event('info', 'Printer configuration changed', {
+                action => 'printer_config_change',
+                old_printer => $old_printer,
+                new_printer => $printer_name
+            });
+        }
 
         # Validate certificate and key compatibility if both are provided
         if (!@errors) {
@@ -138,6 +177,15 @@ sub configure {
                 my $compatibility_result = $self->_validate_cert_key_pair($cert_file, $key_file);
                 if (!$compatibility_result->{valid}) {
                     push @errors, $compatibility_result->{error};
+                    $self->_log_event('error', 'Certificate/key compatibility check failed', {
+                        error_code => 'CERT_KEY_MISMATCH',
+                        error => $compatibility_result->{error},
+                        action => 'compatibility_validation'
+                    });
+                } else {
+                    $self->_log_event('info', 'Certificate/key compatibility validated', {
+                        action => 'compatibility_validation'
+                    });
                 }
             }
         }
@@ -149,6 +197,9 @@ sub configure {
             $self->output_html( $template->output() );
         }
         else {
+            $self->_log_event('info', 'Plugin configuration updated successfully', {
+                action => 'configuration_complete'
+            });
             $self->go_home();
         }
     }
@@ -291,6 +342,15 @@ function popDrawer(s, h) {
       resolve(certificate);
     }).catch(function(error) {
       console.error('Failed to load certificate:', error);
+      // Report error to server for monitoring
+      fetch(window.qzConfig.apiBase + '/../log-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error: 'Certificate loading failed: ' + error.message,
+          context: 'qztray_certificate_load'
+        })
+      }).catch(function() {}); // Ignore logging errors
       resolve('');
     });
   });
@@ -315,6 +375,15 @@ function popDrawer(s, h) {
         resolve(signature);
       }).catch(function(error) {
         console.error('Failed to sign message:', error);
+        // Report error to server for monitoring
+        fetch(window.qzConfig.apiBase + '/../log-error', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            error: 'Message signing failed: ' + error.message,
+            context: 'qztray_message_signing'
+          })
+        }).catch(function() {}); // Ignore logging errors
         resolve('');
       });
     };
@@ -345,11 +414,40 @@ function popDrawer(s, h) {
     })
     .catch(function(error) {
       console.log('QZ Tray operation failed:', error.message || error);
+
+      // Enhanced error reporting with user-friendly messages
+      var errorMessage = 'Cash drawer operation failed';
+      var userMessage = 'Unable to open cash drawer. Please check QZ Tray connection.';
+
+      if (error.message) {
+        if (error.message.includes('WebSocket')) {
+          userMessage = 'QZ Tray is not running or not accessible. Please start QZ Tray and try again.';
+        } else if (error.message.includes('printer')) {
+          userMessage = 'Printer not found or not accessible. Please check printer configuration.';
+        } else if (error.message.includes('Certificate')) {
+          userMessage = 'Certificate authentication failed. Please check plugin configuration.';
+        }
+        errorMessage = error.message;
+      }
+
+      // Report detailed error to server for monitoring
+      fetch(window.qzConfig.apiBase + '/../log-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error: 'QZ Tray operation failed: ' + errorMessage,
+          context: 'qztray_drawer_operation',
+          user_agent: navigator.userAgent,
+          page_url: window.location.href
+        })
+      }).catch(function() {}); // Ignore logging errors
+
+      // Show user-friendly error message
+      alert(userMessage);
       displayError(error);
       \$('.' + h).hide();
       \$('.' + s).show();
       return qz.websocket.disconnect();
-
     })
     .finally(function() {
       setTimeout(function() {
@@ -462,11 +560,7 @@ sub _validate_certificate {
     # Attempt to parse the certificate
     eval {
         my $x509 = Crypt::OpenSSL::X509->new_from_string($cert_content);
-
-        # Check if certificate is expired
-        my $not_after = $x509->notAfter();
-        # Note: You might want to add date comparison logic here
-        # For now, we just verify it can be parsed
+        # Basic parsing validation - certificate can be loaded
     };
 
     if ($@) {
@@ -570,6 +664,60 @@ sub _escape_js_string {
     return $string;
 }
 
+
+# Logging and error handling methods
+
+=head3 _get_logger
+
+Get a logger instance for this plugin
+
+=cut
+
+sub _get_logger {
+    my ($self) = @_;
+    return Koha::Logger->get({ interface => 'api', category => 'plugin.qztray' });
+}
+
+=head3 _log_event
+
+Log an event with structured data
+
+    $self->_log_event('info', 'Configuration updated', {
+        user => $patron_id,
+        action => 'certificate_upload'
+    });
+
+=cut
+
+sub _log_event {
+    my ($self, $level, $message, $data) = @_;
+
+    my $logger = $self->_get_logger();
+    $data ||= {};
+
+    # Add plugin context
+    $data->{plugin} = 'QZTray';
+    $data->{version} = $VERSION;
+
+    # Add user context if available
+    if (C4::Context->userenv) {
+        $data->{user_id} = C4::Context->userenv->{number};
+        $data->{user_cardnumber} = C4::Context->userenv->{cardnumber};
+    }
+
+    my $structured_message = "$message: " . JSON::encode_json($data);
+
+    if ($level eq 'error') {
+        $logger->error($structured_message);
+    } elsif ($level eq 'warn') {
+        $logger->warn($structured_message);
+    } elsif ($level eq 'debug') {
+        $logger->debug($structured_message);
+    } else {
+        $logger->info($structured_message);
+    }
+}
+
 # Secure storage methods following Koha best practices
 
 =head3 store_encrypted_data
@@ -591,7 +739,11 @@ sub store_encrypted_data {
         $self->store_data({ $key => $encrypted });
         return 1;
     } catch {
-        warn "Failed to encrypt plugin data for key '$key': $_";
+        $self->_log_event('error', 'Failed to encrypt plugin data', {
+            key => $key,
+            error => "$_",
+            action => 'store_encrypted_data'
+        });
         return 0;
     };
 }
@@ -617,7 +769,11 @@ sub retrieve_encrypted_data {
         my $cipher = Koha::Encryption->new;
         return $cipher->decrypt_hex($encrypted);
     } catch {
-        warn "Failed to decrypt plugin data for key '$key': $_";
+        $self->_log_event('error', 'Failed to decrypt plugin data', {
+            key => $key,
+            error => "$_",
+            action => 'retrieve_encrypted_data'
+        });
         return;
     };
 }
@@ -638,7 +794,15 @@ sub validate_encryption_setup {
         return 1;
     } catch {
         if ($_->isa('Koha::Exceptions::MissingParameter')) {
-            warn "Encryption not configured: " . $_->message;
+            $self->_log_event('warn', 'Encryption not configured', {
+                error => $_->message,
+                action => 'validate_encryption_setup'
+            });
+        } else {
+            $self->_log_event('error', 'Encryption validation failed', {
+                error => "$_",
+                action => 'validate_encryption_setup'
+            });
         }
         return 0;
     };
@@ -662,10 +826,19 @@ sub migrate_to_encrypted_storage {
         # If it exists and doesn't look like hex (encrypted), migrate it
         if ($plain_value && $plain_value !~ /^[0-9a-fA-F]+$/) {
             if ($self->store_encrypted_data($key, $plain_value)) {
-                warn "Migrated $key to encrypted storage";
+                $self->_log_event('info', 'Migrated data to encrypted storage', {
+                    key => $key,
+                    action => 'migration'
+                });
+            } else {
+                $self->_log_event('error', 'Failed to migrate data to encrypted storage', {
+                    key => $key,
+                    action => 'migration'
+                });
             }
         }
     }
 }
+
 
 1;
