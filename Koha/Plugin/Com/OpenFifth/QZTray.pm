@@ -208,12 +208,7 @@ sub configure {
 sub intranet_js {
     my ($self) = @_;
 
-    # Always load in staff interface when plugin is enabled and configured
-    my $certificate = $self->retrieve_encrypted_data('certificate_file') || '';
-    my $private_key = $self->retrieve_encrypted_data('private_key_file') || '';
-
-    return '' unless ( $certificate && $private_key );
-
+    # Always load QZ Tray JavaScript when plugin is enabled
     return $self->_generate_qz_js();
 }
 
@@ -280,6 +275,22 @@ window.qzConfig = {
     preferredPrinter: '$preferred_printer'
 };
 
+// Check certificate configuration status on load
+(function() {
+    fetch(window.qzConfig.apiBase + '/certificate', {
+        method: 'GET',
+        credentials: 'same-origin'
+    }).then(function(response) {
+        if (response.ok) {
+            console.log('QZ Tray certificates: Configured and ready');
+        } else {
+            console.log('QZ Tray certificates: Not configured - operations will require user trust prompts');
+        }
+    }).catch(function() {
+        console.log('QZ Tray certificates: Unable to check configuration status');
+    });
+})();
+
 
 // QZ Tray Cash Drawer Functionality (global scope)
 function displayError(err) {
@@ -336,7 +347,15 @@ function popDrawer(s, h) {
       if (response.ok) {
         return response.text();
       } else {
-        throw new Error('Certificate not configured');
+        // Try to parse JSON error response for better error messages
+        return response.json().then(function(errorData) {
+          var message = errorData.error || 'Certificate not configured';
+          var code = errorData.error_code || 'UNKNOWN_ERROR';
+          throw new Error(message + ' (' + code + ')');
+        }).catch(function() {
+          // Fallback if JSON parsing fails
+          throw new Error('Certificate not configured');
+        });
       }
     }).then(function(certificate) {
       resolve(certificate);
@@ -369,7 +388,15 @@ function popDrawer(s, h) {
         if (response.ok) {
           return response.text();
         } else {
-          throw new Error('Signing failed');
+          // Try to parse JSON error response for better error messages
+          return response.json().then(function(errorData) {
+            var message = errorData.error || 'Signing failed';
+            var code = errorData.error_code || 'UNKNOWN_ERROR';
+            throw new Error(message + ' (' + code + ')');
+          }).catch(function() {
+            // Fallback if JSON parsing fails
+            throw new Error('Signing failed');
+          });
         }
       }).then(function(signature) {
         resolve(signature);
