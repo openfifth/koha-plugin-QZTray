@@ -15,7 +15,13 @@
             <main>
                 <h1>QZ Tray Integration Configuration</h1>
                 
-                [% IF errors %]
+                [% IF encryption_error %]
+                    <div class="alert alert-danger">
+                        <h4>Encryption Configuration Required</h4>
+                        <p>[% error_message | html %]</p>
+                        <p>This plugin requires encryption to securely store certificates and private keys. Please contact your system administrator to configure encryption in Koha.</p>
+                    </div>
+                [% ELSIF errors %]
                     <div class="alert alert-danger">
                         <h4>Configuration errors:</h4>
                         <ul>
@@ -45,7 +51,7 @@
                                 <label for="certificate_upload">Digital Certificate File:</label>
                                 <input type="file" name="certificate_upload" id="certificate_upload" accept=".txt,.pem,.crt" />
                                 [% IF certificate_file %]
-                                    <div class="hint">Current certificate: Uploaded ([% certificate_file.length %] bytes)</div>
+                                    <div class="hint">Current certificate: Securely stored and encrypted</div>
                                 [% ELSE %]
                                     <div class="hint">No certificate uploaded</div>
                                 [% END %]
@@ -54,7 +60,7 @@
                                 <label for="private_key_upload">Private Key File:</label>
                                 <input type="file" name="private_key_upload" id="private_key_upload" accept=".key,.pem" />
                                 [% IF private_key_file %]
-                                    <div class="hint">Current private key: Uploaded ([% private_key_file.length %] bytes)</div>
+                                    <div class="hint">Current private key: Securely stored and encrypted</div>
                                 [% ELSE %]
                                     <div class="hint">No private key uploaded</div>
                                 [% END %]

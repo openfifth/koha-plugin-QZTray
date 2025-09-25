@@ -11,7 +11,7 @@ sub getCertificate {
 
     try {
         my $plugin      = Koha::Plugin::Com::OpenFifth::QZTray->new();
-        my $certificate = $plugin->retrieve_data('certificate_file');
+        my $certificate = $plugin->retrieve_encrypted_data('certificate_file');
 
         unless ($certificate) {
             return $c->render(
@@ -39,7 +39,7 @@ sub signMessage {
 
     try {
         my $plugin          = Koha::Plugin::Com::OpenFifth::QZTray->new();
-        my $private_key_pem = $plugin->retrieve_data('private_key_file');
+        my $private_key_pem = $plugin->retrieve_encrypted_data('private_key_file');
 
         unless ($private_key_pem) {
             return $c->render(
