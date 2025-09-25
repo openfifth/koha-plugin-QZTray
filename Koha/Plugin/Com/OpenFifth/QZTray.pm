@@ -435,6 +435,16 @@ function popDrawer(s, h) {
     })
     .then(function() {
       console.log('Cash drawer command sent successfully');
+
+      // Show success message using Koha's native messaging system
+      if (\$("#transient_result").length > 0) {
+        \$("#transient_result").replaceWith(
+          '<div id="transient_result" class="alert alert-success">' +
+            'Cash drawer opened successfully' +
+          '</div>'
+        );
+      }
+
       \$('.' + h).hide();
       \$('.' + s).show();
       return qz.websocket.disconnect();
@@ -469,8 +479,17 @@ function popDrawer(s, h) {
         })
       }).catch(function() {}); // Ignore logging errors
 
-      // Show user-friendly error message
-      alert(userMessage);
+      // Show user-friendly error message using Koha's native messaging system
+      if (\$("#transient_result").length > 0) {
+        \$("#transient_result").replaceWith(
+          '<div id="transient_result" class="alert alert-warning">' +
+            userMessage +
+          '</div>'
+        );
+      } else {
+        // Fallback to browser alert if transient_result div not found
+        alert(userMessage);
+      }
       displayError(error);
       \$('.' + h).hide();
       \$('.' + s).show();
