@@ -52,7 +52,7 @@ console.log('package.json updated successfully');
 console.log(`Updating plugin file: ${packageJson.plugin.pm_path}`);
 const pluginFile = packageJson.plugin.pm_path;
 let pluginContent = fs.readFileSync(pluginFile, 'utf8');
-const oldVersionMatch = pluginContent.match(/our \$VERSION = ["'](\d+\.\d+\.\d+)["'];/);
+const oldVersionMatch = pluginContent.match(/our \$VERSION\s+=\s+["'](\d+\.\d+\.\d+)["'];/);
 if (oldVersionMatch) {
     console.log(`Found current version in plugin file: ${oldVersionMatch[1]}`);
 } else {
@@ -63,10 +63,10 @@ if (oldVersionMatch) {
 const today = new Date().toISOString().split('T')[0];
 console.log(`Today's date: ${today}`);
 
-// Update version
+// Update version (preserve original whitespace formatting)
 pluginContent = pluginContent.replace(
-    /our \$VERSION = ["']\d+\.\d+\.\d+["'];/,
-    `our \$VERSION = '${newVersion}';`
+    /our \$VERSION\s+=\s+["']\d+\.\d+\.\d+["'];/,
+    `our $VERSION         = '${newVersion}';`
 );
 
 // Update date_updated
