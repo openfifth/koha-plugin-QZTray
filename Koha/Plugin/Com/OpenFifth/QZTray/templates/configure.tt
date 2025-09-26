@@ -101,79 +101,119 @@
 </div>
 
 <script type="text/javascript">
-$(document).ready(function() {
+function documentReady(fn) {
+    if (document.readyState !== 'loading') {
+        fn();
+    } else {
+        document.addEventListener('DOMContentLoaded', fn);
+    }
+}
+
+documentReady(function() {
     console.log('Configuration page ready');
     console.log('qz available:', typeof qz !== 'undefined');
     console.log('KEYUTIL available:', typeof KEYUTIL !== 'undefined');
-    
+
     // Set up printer refresh functionality
     setupPrinterRefresh();
-    
+
     function setupPrinterRefresh() {
-        $('#refresh_printers').click(function() {
-            refreshPrinterList();
-        });
-        
+        var refreshButton = document.getElementById('refresh_printers');
+        if (refreshButton) {
+            refreshButton.addEventListener('click', refreshPrinterList);
+        }
+
         // Show initial status
-        $('#printer_status').text('Click "Refresh Printer List" to detect printers');
+        var statusElement = document.getElementById('printer_status');
+        if (statusElement) {
+            statusElement.textContent = 'Click "Refresh Printer List" to detect printers';
+        }
     }
-    
+
     function refreshPrinterList() {
-        $('#printer_status').text('Connecting to QZ Tray...').removeClass('error');
-        $('#refresh_printers').prop('disabled', true);
-        
+        var statusElement = document.getElementById('printer_status');
+        var refreshButton = document.getElementById('refresh_printers');
+
+        if (statusElement) {
+            statusElement.textContent = 'Connecting to QZ Tray...';
+            statusElement.className = statusElement.className.replace(' error', '');
+        }
+
+        if (refreshButton) {
+            refreshButton.disabled = true;
+        }
+
         if (typeof qz === 'undefined') {
-            $('#printer_status').text('QZ Tray libraries not loaded. Please enable the plugin in the staff interface and try again.').addClass('error');
-            $('#refresh_printers').prop('disabled', false);
+            if (statusElement) {
+                statusElement.textContent = 'QZ Tray libraries not loaded. Please enable the plugin in the staff interface and try again.';
+                statusElement.className += ' error';
+            }
+            if (refreshButton) {
+                refreshButton.disabled = false;
+            }
             return;
         }
-        
+
         // Set up minimal QZ Tray configuration for printer detection
         qz.security.setCertificatePromise(function(resolve, reject) {
             resolve(''); // Empty certificate for printer detection
         });
-        
+
         qz.security.setSignaturePromise(function(toSign) {
             return function(resolve, reject) {
                 resolve(''); // Empty signature for printer detection
             };
         });
-        
+
         qz.websocket.connect().then(function() {
-            $('#printer_status').text('Connected to QZ Tray, fetching printers...');
+            if (statusElement) {
+                statusElement.textContent = 'Connected to QZ Tray, fetching printers...';
+            }
             return qz.printers.find();
         }).then(function(printers) {
             updatePrinterList(printers);
-            $('#printer_status').text('Found ' + printers.length + ' printer(s)');
+            if (statusElement) {
+                statusElement.textContent = 'Found ' + printers.length + ' printer(s)';
+            }
         }).catch(function(error) {
             console.error('QZ Tray error:', error);
-            $('#printer_status').text('Error: ' + error.message).addClass('error');
+            if (statusElement) {
+                statusElement.textContent = 'Error: ' + error.message;
+                statusElement.className += ' error';
+            }
         }).finally(function() {
-            $('#refresh_printers').prop('disabled', false);
+            if (refreshButton) {
+                refreshButton.disabled = false;
+            }
             if (typeof qz !== 'undefined' && qz.websocket) {
                 qz.websocket.disconnect();
             }
         });
     }
-    
+
     function updatePrinterList(printers) {
-        var $select = $('#preferred_printer');
-        var currentValue = $select.val();
-        
+        var select = document.getElementById('preferred_printer');
+        if (!select) return;
+
+        var currentValue = select.value;
+
         // Clear existing options except the default
-        $select.find('option:not([value=""])').remove();
-        
+        var options = select.querySelectorAll('option[value!=""]');
+        options.forEach(function(option) {
+            option.remove();
+        });
+
         // Add printers to the list
         printers.forEach(function(printer) {
-            var $option = $('<option></option>')
-                .attr('value', printer)
-                .text(printer);
-            
+            var option = document.createElement('option');
+            option.value = printer;
+            option.textContent = printer;
+
             if (printer === currentValue) {
-                $option.prop('selected', true);
+                option.selected = true;
             }
-            
-            $select.append($option);
+
+            select.appendChild(option);
         });
     }
 });

@@ -143,5 +143,98 @@
         }
       }
     }
+  },
+  "/log-error": {
+    "post": {
+      "x-mojo-to": "Com::OpenFifth::QZTray::Controllers::Auth#logError",
+      "operationId": "logError",
+      "tags": [
+        "qztray-logging"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "consumes": [
+        "application/json"
+      ],
+      "parameters": [
+        {
+          "name": "body",
+          "in": "body",
+          "required": true,
+          "description": "Error information to log",
+          "schema": {
+            "type": "object",
+            "required": [
+              "error"
+            ],
+            "properties": {
+              "error": {
+                "type": "string",
+                "description": "Error message to log"
+              },
+              "context": {
+                "type": "string",
+                "description": "Context where error occurred"
+              },
+              "user_agent": {
+                "type": "string",
+                "description": "User agent string"
+              },
+              "page_url": {
+                "type": "string",
+                "description": "URL where error occurred"
+              }
+            }
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Error logged successfully",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "description": "Success status"
+              }
+            }
+          }
+        },
+        "400": {
+          "description": "Invalid request data",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string",
+                "description": "Error message"
+              },
+              "error_code": {
+                "type": "string",
+                "description": "Machine-readable error code"
+              }
+            }
+          }
+        },
+        "500": {
+          "description": "Internal server error",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string",
+                "description": "Error message"
+              },
+              "error_code": {
+                "type": "string",
+                "description": "Machine-readable error code"
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }

@@ -109,4 +109,63 @@ sub signMessage {
     };
 }
 
+sub logError {
+    my $c = shift->openapi->valid_input or return;
+
+    try {
+        my $plugin = Koha::Plugin::Com::OpenFifth::QZTray->new();
+        my $body   = $c->validation->param('body');
+
+        # Extract error details
+        my $error_message = $body->{error} || 'Unknown error';
+        my $context       = $body->{context} || 'unknown_context';
+        my $user_agent    = $body->{user_agent} || 'unknown_user_agent';
+        my $page_url      = $body->{page_url} || 'unknown_url';
+
+        # Validate required fields
+        unless ($error_message) {
+            return $c->render(
+                json => {
+                    error => 'Missing required field: error',
+                    error_code => 'MISSING_ERROR_MESSAGE'
+                },
+                status => 400
+            );
+        }
+
+        # Log the client-side error
+        $plugin->_log_event('error', 'Client-side error', {
+            client_error => $error_message,
+            context => $context,
+            user_agent => $user_agent,
+            page_url => $page_url,
+            timestamp => scalar(localtime()),
+            action => 'client_error_log',
+            endpoint => '/log-error'
+        });
+
+        return $c->render(
+            json => {
+                status => 'logged'
+            },
+            status => 200
+        );
+    }
+    catch {
+        my $plugin = Koha::Plugin::Com::OpenFifth::QZTray->new();
+        $plugin->_log_event('error', 'Error logging client error', {
+            error => "$_",
+            action => 'logError',
+            endpoint => '/log-error'
+        });
+        return $c->render(
+            json => {
+                error => 'Failed to log error',
+                error_code => 'ERROR_LOGGING_FAILED'
+            },
+            status => 500
+        );
+    };
+}
+
 1;
