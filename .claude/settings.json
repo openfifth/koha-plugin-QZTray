@@ -1,0 +1,12 @@
+{
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "allow": [
+    ],
+    "deny": [],
+    "additionalDirectories": [
+      "/home/martin/Projects/koha/",
+      "/home/martin/Projects/koha-plugins/koha-plugin-wscc-oracle/"
+    ],
+  }
+}
