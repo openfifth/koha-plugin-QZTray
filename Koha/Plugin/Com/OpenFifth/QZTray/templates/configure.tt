@@ -36,13 +36,13 @@
             <main>
                 <h1>QZ Tray Integration Configuration</h1>
 
-                [% IF dependency_error %]
-                    <div class="alert alert-danger">
-                        <h4>Server Dependencies Required</h4>
+                [% IF dependency_warning %]
+                    <div class="alert alert-warning">
+                        <h4>Optional Server Dependencies Missing</h4>
                         <p>[% dependency_message | html %]</p>
-                        <div class="alert alert-warning" style="margin-top: 15px;">
-                            <strong>Plugin Status:</strong> This plugin is installed but disabled until the required server-side dependencies are installed.
-                            The plugin cannot function without these libraries.
+                        <div class="alert alert-info" style="margin-top: 15px;">
+                            <strong>Plugin Status:</strong> This plugin is functional for basic cash drawer operations, but certificate management is disabled.
+                            For production use with secure certificate authentication, install the server dependencies above.
                         </div>
                     </div>
                 [% ELSIF encryption_error %]
@@ -64,8 +64,9 @@
                 
                 <div class="alert alert-info">
                     <h4>About QZ Tray Integration</h4>
-                    <p>This plugin integrates QZ Tray printing functionality into Koha. You need to upload your digital certificate and private key files to enable secure communication with QZ Tray.</p>
-                    <p>These files are typically provided when you set up QZ Tray for secure printing operations.</p>
+                    <p>This plugin integrates QZ Tray printing functionality into Koha for automatic cash drawer opening.</p>
+                    <p><strong>Development/Testing:</strong> The plugin works immediately without certificates - QZ Tray will prompt users to trust the connection.</p>
+                    <p><strong>Production Use:</strong> Upload your digital certificate and private key files for secure, automatic communication with QZ Tray without user prompts.</p>
                 </div>
                 
                 <form method="post" enctype="multipart/form-data">
@@ -75,12 +76,19 @@
                     <input type="hidden" name="save" value="1" />
                     
                     <fieldset class="rows">
-                        <legend>Certificate Configuration</legend>
+                        <legend>Certificate Configuration [% IF !openssl_available %](Disabled - Server Dependencies Missing)[% END %]</legend>
+                        [% IF !openssl_available %]
+                            <div class="alert alert-info">
+                                <p><strong>Certificate uploads are disabled</strong> because required server libraries are not installed. The plugin will work in development mode without certificates, but for production security you should install the missing dependencies.</p>
+                            </div>
+                        [% END %]
                         <ol>
                             <li>
                                 <label for="certificate_upload">Digital Certificate File:</label>
-                                <input type="file" name="certificate_upload" id="certificate_upload" accept=".txt,.pem,.crt" />
-                                [% IF certificate_file %]
+                                <input type="file" name="certificate_upload" id="certificate_upload" accept=".txt,.pem,.crt" [% IF !openssl_available %]disabled="disabled"[% END %] />
+                                [% IF !openssl_available %]
+                                    <div class="hint">Certificate upload disabled - install server dependencies to enable</div>
+                                [% ELSIF certificate_file %]
                                     <div class="hint">Current certificate: Securely stored and encrypted</div>
                                 [% ELSE %]
                                     <div class="hint">No certificate uploaded</div>
@@ -88,8 +96,10 @@
                             </li>
                             <li>
                                 <label for="private_key_upload">Private Key File:</label>
-                                <input type="file" name="private_key_upload" id="private_key_upload" accept=".key,.pem" />
-                                [% IF private_key_file %]
+                                <input type="file" name="private_key_upload" id="private_key_upload" accept=".key,.pem" [% IF !openssl_available %]disabled="disabled"[% END %] />
+                                [% IF !openssl_available %]
+                                    <div class="hint">Private key upload disabled - install server dependencies to enable</div>
+                                [% ELSIF private_key_file %]
                                     <div class="hint">Current private key: Securely stored and encrypted</div>
                                 [% ELSE %]
                                     <div class="hint">No private key uploaded</div>

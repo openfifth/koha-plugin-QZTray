@@ -53,17 +53,9 @@ sub configure {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
 
-    # Check for required dependencies
+    # Check for optional dependencies (affects certificate management only)
     my $dependency_check = $self->check_dependencies();
-    if (!$dependency_check->{all_available}) {
-        my $template = $self->get_template( { file => 'templates/configure.tt' } );
-        $template->param(
-            dependency_error => 1,
-            missing_dependencies => $dependency_check->{missing},
-            dependency_message => $dependency_check->{message}
-        );
-        return $self->output_html( $template->output() );
-    }
+    my $openssl_available = $dependency_check->{all_available};
 
     # Validate encryption setup
     unless ($self->validate_encryption_setup()) {
@@ -124,6 +116,9 @@ sub configure {
             registers_by_library => \%registers_by_library,
             current_library_id => $current_library_id,
             current_register_id => $current_register_id,
+            openssl_available => $openssl_available,
+            dependency_warning => $openssl_available ? 0 : 1,
+            dependency_message => $openssl_available ? '' : $dependency_check->{message},
         );
 
         $self->output_html( $template->output() );
@@ -283,20 +278,8 @@ sub configure {
 sub intranet_js {
     my ($self) = @_;
 
-    # Check dependencies before loading JavaScript
-    my $dependency_check = $self->check_dependencies();
-    unless ($dependency_check->{all_available}) {
-        # Return empty string if dependencies are missing - plugin is disabled
-        return '';
-    }
-
-    # Check encryption setup
-    unless ($self->validate_encryption_setup()) {
-        # Return empty string if encryption is not configured - plugin is disabled
-        return '';
-    }
-
-    # Load QZ Tray JavaScript when plugin is fully functional
+    # Always load QZ Tray JavaScript - it can function without certificates
+    # Certificate validation is optional for development/testing scenarios
     return $self->_generate_qz_js();
 }
 
