@@ -7,14 +7,22 @@ use base qw(Koha::Plugins::Base);
 use C4::Context;
 use Koha::DateUtils;
 use JSON qw( decode_json );
-use Crypt::OpenSSL::RSA;
-use Crypt::OpenSSL::X509;
 use Koha::Encryption;
 use Koha::Exceptions;
 use Koha::Logger;
 use Koha::Cash::Registers;
 use Koha::Libraries;
 use Try::Tiny;
+
+# Optional dependencies - gracefully handle missing OpenSSL modules
+our $OPENSSL_AVAILABLE = 1;
+eval {
+    require Crypt::OpenSSL::RSA;
+    require Crypt::OpenSSL::X509;
+    1;
+} or do {
+    $OPENSSL_AVAILABLE = 0;
+};
 
 our $VERSION         = '1.0.4';
 our $MINIMUM_VERSION = "22.05.00.000";
@@ -44,6 +52,18 @@ sub new {
 sub configure {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
+
+    # Check for required dependencies
+    my $dependency_check = $self->check_dependencies();
+    if (!$dependency_check->{all_available}) {
+        my $template = $self->get_template( { file => 'templates/configure.tt' } );
+        $template->param(
+            dependency_error => 1,
+            missing_dependencies => $dependency_check->{missing},
+            dependency_message => $dependency_check->{message}
+        );
+        return $self->output_html( $template->output() );
+    }
 
     # Validate encryption setup
     unless ($self->validate_encryption_setup()) {
@@ -263,7 +283,20 @@ sub configure {
 sub intranet_js {
     my ($self) = @_;
 
-    # Always load QZ Tray JavaScript when plugin is enabled
+    # Check dependencies before loading JavaScript
+    my $dependency_check = $self->check_dependencies();
+    unless ($dependency_check->{all_available}) {
+        # Return empty string if dependencies are missing - plugin is disabled
+        return '';
+    }
+
+    # Check encryption setup
+    unless ($self->validate_encryption_setup()) {
+        # Return empty string if encryption is not configured - plugin is disabled
+        return '';
+    }
+
+    # Load QZ Tray JavaScript when plugin is fully functional
     return $self->_generate_qz_js();
 }
 
@@ -383,6 +416,11 @@ sub _escape_js_content {
 sub _validate_certificate {
     my ($self, $cert_content) = @_;
 
+    # Check if OpenSSL modules are available
+    unless ($OPENSSL_AVAILABLE) {
+        return { valid => 0, error => 'OpenSSL libraries not available for certificate validation' };
+    }
+
     # Basic validation
     return { valid => 0, error => 'Certificate file appears to be empty' }
         unless $cert_content && length($cert_content) > 0;
@@ -412,6 +450,11 @@ sub _validate_certificate {
 
 sub _validate_private_key {
     my ($self, $key_content) = @_;
+
+    # Check if OpenSSL modules are available
+    unless ($OPENSSL_AVAILABLE) {
+        return { valid => 0, error => 'OpenSSL libraries not available for private key validation' };
+    }
 
     # Basic validation
     return { valid => 0, error => 'Private key file appears to be empty' }
@@ -447,6 +490,11 @@ sub _validate_private_key {
 
 sub _validate_cert_key_pair {
     my ($self, $cert_content, $key_content) = @_;
+
+    # Check if OpenSSL modules are available
+    unless ($OPENSSL_AVAILABLE) {
+        return { valid => 0, error => 'OpenSSL libraries not available for certificate/key validation' };
+    }
 
     eval {
         # Parse certificate and private key
@@ -504,6 +552,44 @@ sub _escape_js_string {
     return $string;
 }
 
+
+# Dependency checking methods
+
+=head3 check_dependencies
+
+Check if all required dependencies are available
+
+=cut
+
+sub check_dependencies {
+    my ($self) = @_;
+
+    my @missing = ();
+    my $message = '';
+
+    # Check OpenSSL dependencies
+    unless ($OPENSSL_AVAILABLE) {
+        push @missing, 'libcrypt-openssl-x509-perl';
+    }
+
+    if (@missing) {
+        $message = 'The following server-side dependencies are missing and must be installed before this plugin can function properly: ' . join(', ', @missing) . '. ';
+        $message .= 'Please contact your system administrator to install these packages. ';
+        $message .= 'On Debian/Ubuntu systems, run: sudo apt install ' . join(' ', @missing);
+
+        return {
+            all_available => 0,
+            missing => \@missing,
+            message => $message
+        };
+    }
+
+    return {
+        all_available => 1,
+        missing => [],
+        message => 'All dependencies are available'
+    };
+}
 
 # Logging and error handling methods
 

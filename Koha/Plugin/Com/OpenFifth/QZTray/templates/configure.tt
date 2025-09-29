@@ -35,8 +35,17 @@
         <div class="col-md-10 order-md-2 order-sm-1">
             <main>
                 <h1>QZ Tray Integration Configuration</h1>
-                
-                [% IF encryption_error %]
+
+                [% IF dependency_error %]
+                    <div class="alert alert-danger">
+                        <h4>Server Dependencies Required</h4>
+                        <p>[% dependency_message | html %]</p>
+                        <div class="alert alert-warning" style="margin-top: 15px;">
+                            <strong>Plugin Status:</strong> This plugin is installed but disabled until the required server-side dependencies are installed.
+                            The plugin cannot function without these libraries.
+                        </div>
+                    </div>
+                [% ELSIF encryption_error %]
                     <div class="alert alert-danger">
                         <h4>Encryption Configuration Required</h4>
                         <p>[% error_message | html %]</p>
