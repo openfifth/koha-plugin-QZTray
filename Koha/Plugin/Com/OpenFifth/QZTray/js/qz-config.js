@@ -64,12 +64,35 @@
         },
 
         /**
+         * Get the current register ID from form fields
+         */
+        getCurrentRegister: function() {
+            // 1. Check for register in form select dropdown
+            var registerSelect = document.getElementById('registerid');
+            if (registerSelect && registerSelect.value) {
+                return registerSelect.value;
+            }
+
+            // 2. Check for register in hidden form fields
+            var hiddenRegister = document.querySelector('input[name="registerid"]');
+            if (hiddenRegister && hiddenRegister.value) {
+                return hiddenRegister.value;
+            }
+
+            // 3. Fall back to session context register
+            return this.currentRegister;
+        },
+
+        /**
          * Get the appropriate printer for the current context
          */
         getPrinter: function() {
-            // If we have a current register and a specific mapping for it, use that
-            if (this.currentRegister && this.registerMappings[this.currentRegister]) {
-                return this.registerMappings[this.currentRegister];
+            // Get the actual current register (from form or session)
+            var activeRegister = this.getCurrentRegister();
+
+            // If we have an active register and a specific mapping for it, use that
+            if (activeRegister && this.registerMappings[activeRegister]) {
+                return this.registerMappings[activeRegister];
             }
 
             // Otherwise, return empty string to use system default
