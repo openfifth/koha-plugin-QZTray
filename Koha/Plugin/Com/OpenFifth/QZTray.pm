@@ -13,6 +13,7 @@ use Koha::Encryption;
 use Koha::Exceptions;
 use Koha::Logger;
 use Koha::Cash::Registers;
+use Koha::Libraries;
 use Try::Tiny;
 
 our $VERSION         = '1.0.3';
@@ -70,18 +71,39 @@ sub configure {
         my $mappings_data = {};
         eval { $mappings_data = decode_json($register_mappings); };
 
-        # Get available cash registers for this library
-        my $library_id = C4::Context->userenv->{'branch'};
+        # Get available cash registers grouped by library
+        my $current_library_id = C4::Context->userenv->{'branch'};
+        my $current_register_id = C4::Context->userenv->{'register_id'} || '';
+
+        # Get all registers for libraries the user has access to
         my $registers = Koha::Cash::Registers->search(
-            { branch => $library_id, archived => 0 },
-            { order_by => { '-asc' => 'name' } }
+            { archived => 0 },
+            {
+                order_by => [ { '-asc' => 'branch' }, { '-asc' => 'name' } ],
+                prefetch => 'branch'
+            }
         );
+
+        # Group registers by library
+        my %registers_by_library;
+        while (my $register = $registers->next) {
+            my $library = $register->library;
+            push @{$registers_by_library{$library->branchcode}}, {
+                id => $register->id,
+                name => $register->name,
+                description => $register->description,
+                is_current => ($register->id eq $current_register_id),
+                library => $library
+            };
+        }
 
         $template->param(
             certificate_file  => $cert_exists ? 'ENCRYPTED' : '',
             private_key_file  => $key_exists ? 'ENCRYPTED' : '',
             register_mappings => $mappings_data,
-            cash_registers => $registers,
+            registers_by_library => \%registers_by_library,
+            current_library_id => $current_library_id,
+            current_register_id => $current_register_id,
         );
 
         $self->output_html( $template->output() );

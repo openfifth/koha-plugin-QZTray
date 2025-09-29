@@ -89,33 +89,61 @@
                         </ol>
                     </fieldset>
                     
-                    [% IF cash_registers && cash_registers.count > 0 %]
+                    [% IF registers_by_library && registers_by_library.size > 0 %]
                     <fieldset class="rows">
                         <legend>Printer Settings</legend>
                         <div class="hint">Configure printers for each cash register. If no printer is specified, the system default printer will be used.</div>
-                        <div style="margin-bottom: 10px;">
+
+                        [% IF current_register_id %]
+                        <div class="alert alert-info" style="margin: 10px 0;">
+                            <strong>Current Session Register:</strong> You are currently configured to use register ID [% current_register_id | html %]
+                        </div>
+                        [% END %]
+
+                        <div style="margin-bottom: 15px;">
                             <button type="button" id="refresh_printers">Refresh Printer List</button>
                             <div id="printer_status" class="hint" style="display: inline-block; margin-left: 10px;"></div>
                         </div>
-                        <ol>
-                            [% FOREACH register IN cash_registers %]
-                            <li>
-                                <label for="register_printer_[% register.id %]">[% register.name | html %] ([% register.description | html %]):</label>
-                                <input type="hidden" name="register_id" value="[% register.id %]" />
-                                <select name="register_printer" id="register_printer_[% register.id %]" class="register_printer_select">
-                                    <option value="">Use system default printer</option>
-                                    [% IF register_mappings.${register.id} %]
-                                        <option value="[% register_mappings.${register.id} | html %]" selected="selected">[% register_mappings.${register.id} | html %]</option>
-                                    [% END %]
-                                </select>
-                            </li>
-                            [% END %]
-                        </ol>
+
+                        [% FOREACH library_code IN registers_by_library.keys.sort %]
+                        [% library_registers = registers_by_library.$library_code %]
+                        [% first_register = library_registers.0 %]
+
+                        <fieldset class="library-group" style="margin-bottom: 20px; border: 1px solid #ddd; padding: 10px;">
+                            <legend style="font-weight: bold; color: #333;">
+                                [% first_register.library.branchname | html %]
+                                ([% library_code | html %])
+                                [% IF library_code == current_library_id %]
+                                    <span style="color: #28a745; font-weight: normal;"> - Your Current Library</span>
+                                [% END %]
+                            </legend>
+
+                            <ol>
+                                [% FOREACH register IN library_registers %]
+                                <li [% IF register.is_current %]style="background-color: #e8f5e8; padding: 5px; border-radius: 3px;"[% END %]>
+                                    <label for="register_printer_[% register.id %]">
+                                        [% register.name | html %] ([% register.description | html %])
+                                        [% IF register.is_current %]
+                                            <strong style="color: #28a745;"> ← Current Session Register</strong>
+                                        [% END %]
+                                    </label>
+                                    <input type="hidden" name="register_id" value="[% register.id %]" />
+                                    <select name="register_printer" id="register_printer_[% register.id %]" class="register_printer_select">
+                                        <option value="">Use system default printer</option>
+                                        [% IF register_mappings.${register.id} %]
+                                            <option value="[% register_mappings.${register.id} | html %]" selected="selected">[% register_mappings.${register.id} | html %]</option>
+                                        [% END %]
+                                    </select>
+                                </li>
+                                [% END %]
+                            </ol>
+                        </fieldset>
+                        [% END %]
                     </fieldset>
                     [% ELSE %]
                     <div class="alert alert-info">
                         <h4>No Cash Registers Found</h4>
-                        <p>No cash registers are configured for this library. Please contact your system administrator to set up cash registers before configuring printers.</p>
+                        <p>No cash registers are configured for any library. Please contact your system administrator to set up cash registers before configuring printers.</p>
                     </div>
                     [% END %]
                     
