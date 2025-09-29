@@ -8,7 +8,8 @@
 
     function QZConfig(config) {
         this.apiBase = config.apiBase || '';
-        this.preferredPrinter = config.preferredPrinter || '';
+        this.registerMappings = config.registerMappings || {};
+        this.currentRegister = config.currentRegister || '';
         this.initialized = false;
     }
 
@@ -60,6 +61,19 @@
          */
         getLogUrl: function() {
             return this.apiBase + '/log-error';
+        },
+
+        /**
+         * Get the appropriate printer for the current context
+         */
+        getPrinter: function() {
+            // If we have a current register and a specific mapping for it, use that
+            if (this.currentRegister && this.registerMappings[this.currentRegister]) {
+                return this.registerMappings[this.currentRegister];
+            }
+
+            // Otherwise, return empty string to use system default
+            return '';
         },
 
         /**

@@ -12,6 +12,7 @@ use Crypt::OpenSSL::X509;
 use Koha::Encryption;
 use Koha::Exceptions;
 use Koha::Logger;
+use Koha::Cash::Registers;
 use Try::Tiny;
 
 our $VERSION         = '1.0.3';
@@ -64,10 +65,23 @@ sub configure {
         my $cert_exists = $self->retrieve_data('certificate_file') || $self->retrieve_encrypted_data('certificate_file');
         my $key_exists = $self->retrieve_data('private_key_file') || $self->retrieve_encrypted_data('private_key_file');
 
+        # Get register mappings
+        my $register_mappings = $self->retrieve_data('register_printer_mappings') || '{}';
+        my $mappings_data = {};
+        eval { $mappings_data = decode_json($register_mappings); };
+
+        # Get available cash registers for this library
+        my $library_id = C4::Context->userenv->{'branch'};
+        my $registers = Koha::Cash::Registers->search(
+            { branch => $library_id, archived => 0 },
+            { order_by => { '-asc' => 'name' } }
+        );
+
         $template->param(
             certificate_file  => $cert_exists ? 'ENCRYPTED' : '',
             private_key_file  => $key_exists ? 'ENCRYPTED' : '',
-            preferred_printer => $self->retrieve_data('preferred_printer') || '',
+            register_mappings => $mappings_data,
+            cash_registers => $registers,
         );
 
         $self->output_html( $template->output() );
@@ -151,23 +165,42 @@ sub configure {
             }
         }
 
-        # Validate and store printer configuration
-        my $old_printer = $self->retrieve_data('preferred_printer') || '';
-        my $printer_name = $self->_sanitize_printer_name($cgi->param('preferred_printer') || '');
+        # Handle register-specific printer mappings only
+
+        # Handle register-specific printer mappings
+        my $register_mappings = $self->retrieve_data('register_printer_mappings') || '{}';
+        my $mappings_data = {};
+        eval { $mappings_data = decode_json($register_mappings); };
+
+        # Process register mappings from form
+        my @register_ids = $cgi->multi_param('register_id');
+        my @register_printers = $cgi->multi_param('register_printer');
+
+        for my $i (0..$#register_ids) {
+            my $register_id = $register_ids[$i] || '';
+            my $register_printer = $self->_sanitize_printer_name($register_printers[$i] || '');
+
+            # Validate register_id is numeric
+            if ($register_id =~ /^\d+$/) {
+                if ($register_printer) {
+                    $mappings_data->{$register_id} = $register_printer;
+                } else {
+                    delete $mappings_data->{$register_id};
+                }
+            }
+        }
+
         $self->store_data(
             {
-                preferred_printer => $printer_name,
+                register_printer_mappings => JSON::encode_json($mappings_data),
             }
         );
 
-        # Log printer configuration changes
-        if ($old_printer ne $printer_name) {
-            $self->_log_event('info', 'Printer configuration changed', {
-                action => 'printer_config_change',
-                old_printer => $old_printer,
-                new_printer => $printer_name
-            });
-        }
+        # Log register printer configuration changes
+        $self->_log_event('info', 'Register printer mappings updated', {
+            action => 'register_printer_config_change',
+            mapping_count => scalar(keys %$mappings_data)
+        });
 
         # Validate certificate and key compatibility if both are provided
         if (!@errors) {
@@ -252,11 +285,17 @@ sub _generate_qz_js {
     # Static routes are served at /api/v1/contrib/{namespace}/static{route}
     my $static_base = "/api/v1/contrib/" . $self->api_namespace . "/static";
 
-    # Get preferred printer setting
-    my $preferred_printer = $self->retrieve_data('preferred_printer') || '';
+    # Get register mappings
+    my $register_mappings = $self->retrieve_data('register_printer_mappings') || '{}';
+    my $mappings_data = {};
+    eval { $mappings_data = decode_json($register_mappings); };
+
+    # Get current register ID if available
+    my $current_register = C4::Context->userenv->{'register_id'} || '';
 
     # Properly escape JavaScript strings
-    $preferred_printer = $self->_escape_js_string($preferred_printer);
+    my $mappings_json = $self->_escape_js_string(JSON::encode_json($mappings_data));
+    my $current_register_escaped = $self->_escape_js_string($current_register);
 
     # API routes are served at /api/v1/contrib/{namespace}{route}
     my $api_base = "/api/v1/contrib/" . $self->api_namespace;
@@ -272,7 +311,8 @@ sub _generate_qz_js {
 // QZ Tray Configuration
 window.qzConfig = {
     apiBase: '$api_base',
-    preferredPrinter: '$preferred_printer'
+    registerMappings: JSON.parse('$mappings_json'),
+    currentRegister: '$current_register_escaped'
 };
 </script>
 

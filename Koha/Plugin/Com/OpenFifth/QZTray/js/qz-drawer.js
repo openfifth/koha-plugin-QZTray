@@ -87,12 +87,12 @@
         },
 
         /**
-         * Get printer to use (preferred or default)
+         * Get printer to use (register-specific, preferred, or default)
          */
         _getPrinter: function() {
-            var preferredPrinter = this.config.preferredPrinter;
-            if (preferredPrinter) {
-                return Promise.resolve(preferredPrinter);
+            var selectedPrinter = this.config.getPrinter();
+            if (selectedPrinter) {
+                return Promise.resolve(selectedPrinter);
             } else {
                 return qz.printers.getDefault();
             }
