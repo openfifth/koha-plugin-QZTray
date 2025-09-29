@@ -16,7 +16,7 @@ use Koha::Cash::Registers;
 use Koha::Libraries;
 use Try::Tiny;
 
-our $VERSION         = '1.0.3';
+our $VERSION         = '1.0.4';
 our $MINIMUM_VERSION = "22.05.00.000";
 
 our $metadata = {
@@ -24,7 +24,7 @@ our $metadata = {
     author          => 'OpenFifth',
     description     => 'QZ Tray printing integration for Koha',
     date_authored   => '2025-01-31',
-    date_updated    => '2025-09-26',
+    date_updated    => '2025-09-29',
     minimum_version => $MINIMUM_VERSION,
     maximum_version => undef,
     version         => $VERSION,
