@@ -70,7 +70,7 @@ sub configure {
     # Migrate any existing plain text data to encrypted storage
     $self->migrate_to_encrypted_storage();
 
-    unless ( $cgi->param('save') ) {
+    unless ( $cgi->param('save') || $cgi->param('upload_certificates') || $cgi->param('save_printer_config') ) {
         my $template =
           $self->get_template( { file => 'templates/configure.tt' } );
 
@@ -146,10 +146,12 @@ sub configure {
     }
     else {
         my @errors;
+        my $is_certificate_upload = $cgi->param('upload_certificates');
+        my $is_printer_config_save = $cgi->param('save_printer_config');
 
-        # Handle certificate file upload
+        # Handle certificate file upload (for certificate upload or full save)
         my $cert_upload = $cgi->upload('certificate_upload');
-        if ($cert_upload) {
+        if ($cert_upload && !$is_printer_config_save) {
             if ( not defined $cert_upload ) {
                 push @errors,
                   "Failed to get certificate file: " . $cgi->cgi_error;
@@ -188,9 +190,9 @@ sub configure {
             }
         }
 
-        # Handle private key file upload
+        # Handle private key file upload (for certificate upload or full save)
         my $key_upload = $cgi->upload('private_key_upload');
-        if ($key_upload) {
+        if ($key_upload && !$is_printer_config_save) {
             if ( not defined $key_upload ) {
                 push @errors,
                   "Failed to get private key file: " . $cgi->cgi_error;
@@ -229,42 +231,42 @@ sub configure {
             }
         }
 
-        # Handle register-specific printer mappings only
+        # Handle register-specific printer mappings (for printer config save or full save)
+        if (!$is_certificate_upload) {
+            my $register_mappings = $self->retrieve_data('register_printer_mappings') || '{}';
+            my $mappings_data = {};
+            eval { $mappings_data = decode_json($register_mappings); };
 
-        # Handle register-specific printer mappings
-        my $register_mappings = $self->retrieve_data('register_printer_mappings') || '{}';
-        my $mappings_data = {};
-        eval { $mappings_data = decode_json($register_mappings); };
+            # Process register mappings from form
+            my @register_ids = $cgi->multi_param('register_id');
+            my @register_printers = $cgi->multi_param('register_printer');
 
-        # Process register mappings from form
-        my @register_ids = $cgi->multi_param('register_id');
-        my @register_printers = $cgi->multi_param('register_printer');
+            for my $i (0..$#register_ids) {
+                my $register_id = $register_ids[$i] || '';
+                my $register_printer = $self->_sanitize_printer_name($register_printers[$i] || '');
 
-        for my $i (0..$#register_ids) {
-            my $register_id = $register_ids[$i] || '';
-            my $register_printer = $self->_sanitize_printer_name($register_printers[$i] || '');
-
-            # Validate register_id is numeric
-            if ($register_id =~ /^\d+$/) {
-                if ($register_printer) {
-                    $mappings_data->{$register_id} = $register_printer;
-                } else {
-                    delete $mappings_data->{$register_id};
+                # Validate register_id is numeric
+                if ($register_id =~ /^\d+$/) {
+                    if ($register_printer) {
+                        $mappings_data->{$register_id} = $register_printer;
+                    } else {
+                        delete $mappings_data->{$register_id};
+                    }
                 }
             }
+
+            $self->store_data(
+                {
+                    register_printer_mappings => JSON::encode_json($mappings_data),
+                }
+            );
+
+            # Log register printer configuration changes
+            $self->_log_event('info', 'Register printer mappings updated', {
+                action => 'register_printer_config_change',
+                mapping_count => scalar(keys %$mappings_data)
+            });
         }
-
-        $self->store_data(
-            {
-                register_printer_mappings => JSON::encode_json($mappings_data),
-            }
-        );
-
-        # Log register printer configuration changes
-        $self->_log_event('info', 'Register printer mappings updated', {
-            action => 'register_printer_config_change',
-            mapping_count => scalar(keys %$mappings_data)
-        });
 
         # Validate certificate and key compatibility if both are provided
         if (!@errors) {
@@ -294,10 +296,23 @@ sub configure {
             $self->output_html( $template->output() );
         }
         else {
-            $self->_log_event('info', 'Plugin configuration updated successfully', {
-                action => 'configuration_complete'
-            });
-            $self->go_home();
+            if ($is_certificate_upload) {
+                $self->_log_event('info', 'Certificate files uploaded successfully', {
+                    action => 'certificate_upload_complete'
+                });
+                # Redirect back to configuration page to show results
+                print $cgi->redirect("/cgi-bin/koha/plugins/run.pl?class=" . ref($self) . "&method=configure");
+            } elsif ($is_printer_config_save) {
+                $self->_log_event('info', 'Printer configuration updated successfully', {
+                    action => 'printer_configuration_complete'
+                });
+                $self->go_home();
+            } else {
+                $self->_log_event('info', 'Plugin configuration updated successfully', {
+                    action => 'configuration_complete'
+                });
+                $self->go_home();
+            }
         }
     }
 }

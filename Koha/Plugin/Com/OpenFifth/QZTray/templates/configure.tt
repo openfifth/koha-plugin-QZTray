@@ -82,15 +82,15 @@
                                 <small class="text-muted">(Disabled - Server Dependencies Missing)</small>
                             [% END %]
                         </legend>
-                    
+
                         [% IF !openssl_available %]
                             <div class="alert alert-info">
-                                <strong>Certificate uploads are disabled</strong> because required server libraries are not installed. 
-                                The plugin will work in development mode without certificates, but for production security you should 
+                                <strong>Certificate uploads are disabled</strong> because required server libraries are not installed.
+                                The plugin will work in development mode without certificates, but for production security you should
                                 install the missing dependencies.
                             </div>
                         [% END %]
-                    
+
                         <div class="mb-3">
                             <label for="certificate_upload" class="form-label">Digital Certificate File</label>
                             <input class="form-control" type="file" name="certificate_upload" id="certificate_upload"
@@ -118,7 +118,7 @@
                                 [% END %]
                             </div>
                         </div>
-                    
+
                         <div class="mb-3">
                             <label for="private_key_upload" class="form-label">Private Key File</label>
                             <input class="form-control" type="file" name="private_key_upload" id="private_key_upload"
@@ -136,6 +136,17 @@
                                 [% END %]
                             </div>
                         </div>
+
+                        [% IF openssl_available %]
+                        <div class="mb-3">
+                            <button type="submit" name="upload_certificates" value="1" class="btn btn-primary">
+                                <i class="fa fa-upload"></i> Upload Certificate & Key
+                            </button>
+                            <small class="form-text text-muted d-block mt-1">
+                                Upload selected certificate and/or private key files. Page will reload to show results.
+                            </small>
+                        </div>
+                        [% END %]
                     </fieldset>
 
                     [% IF registers_by_library && registers_by_library.size > 0 %]
@@ -198,7 +209,7 @@
                     
                     
                     <fieldset class="action">
-                        <input type="submit" class="btn btn-primary" value="Save configuration" />
+                        <input type="submit" name="save_printer_config" class="btn btn-success" value="Save Printer Configuration" />
                         <a class="btn btn-secondary ms-2" href="/cgi-bin/koha/plugins/plugins-home.pl">Cancel</a>
                     </fieldset>
                 </form>
