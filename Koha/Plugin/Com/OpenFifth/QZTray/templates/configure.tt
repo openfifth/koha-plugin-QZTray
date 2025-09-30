@@ -74,88 +74,118 @@
                     <input type="hidden" name="class" value="[% CLASS %]"/>
                     <input type="hidden" name="method" value="[% METHOD %]"/>
                     <input type="hidden" name="save" value="1" />
+
+                    <fieldset>
+                        <legend>
+                            Certificate Configuration
+                            [% IF !openssl_available %]
+                                <small class="text-muted">(Disabled - Server Dependencies Missing)</small>
+                            [% END %]
+                        </legend>
                     
-                    <fieldset class="rows">
-                        <legend>Certificate Configuration [% IF !openssl_available %](Disabled - Server Dependencies Missing)[% END %]</legend>
                         [% IF !openssl_available %]
                             <div class="alert alert-info">
-                                <p><strong>Certificate uploads are disabled</strong> because required server libraries are not installed. The plugin will work in development mode without certificates, but for production security you should install the missing dependencies.</p>
+                                <strong>Certificate uploads are disabled</strong> because required server libraries are not installed. 
+                                The plugin will work in development mode without certificates, but for production security you should 
+                                install the missing dependencies.
                             </div>
                         [% END %]
-                        <ol>
-                            <li>
-                                <label for="certificate_upload">Digital Certificate File:</label>
-                                <input type="file" name="certificate_upload" id="certificate_upload" accept=".txt,.pem,.crt" [% IF !openssl_available %]disabled="disabled"[% END %] />
-                                [% IF !openssl_available %]
-                                    <div class="hint">Certificate upload disabled - install server dependencies to enable</div>
-                                [% ELSIF certificate_file %]
-                                    <div class="hint">Current certificate: Securely stored and encrypted</div>
-                                [% ELSE %]
-                                    <div class="hint">No certificate uploaded</div>
-                                [% END %]
-                            </li>
-                            <li>
-                                <label for="private_key_upload">Private Key File:</label>
-                                <input type="file" name="private_key_upload" id="private_key_upload" accept=".key,.pem" [% IF !openssl_available %]disabled="disabled"[% END %] />
-                                [% IF !openssl_available %]
-                                    <div class="hint">Private key upload disabled - install server dependencies to enable</div>
-                                [% ELSIF private_key_file %]
-                                    <div class="hint">Current private key: Securely stored and encrypted</div>
-                                [% ELSE %]
-                                    <div class="hint">No private key uploaded</div>
-                                [% END %]
-                            </li>
-                        </ol>
-                    </fieldset>
                     
+                        <div class="mb-3">
+                            <label for="certificate_upload" class="form-label">Digital Certificate File</label>
+                            <input class="form-control" type="file" name="certificate_upload" id="certificate_upload"
+                                   accept=".pem,.crt,.txt" [% IF !openssl_available %]disabled="disabled"[% END %] />
+                            <div class="form-text">
+                                [% IF !openssl_available %]
+                                    Certificate upload disabled – install server dependencies to enable.
+                                [% ELSIF certificate_file %]
+                                    <span class="badge bg-success">Present</span> Current certificate is securely stored and encrypted.
+                                    [% IF certificate_upload_date %]
+                                        <br><small class="text-muted">Uploaded: [% certificate_upload_date | $KohaDates %]</small>
+                                    [% END %]
+                                    [% IF certificate_expiry_date %]
+                                        <br><small class="text-muted">
+                                            Expires: [% certificate_expiry_date | $KohaDates %]
+                                            [% IF certificate_expires_soon %]
+                                                <span class="badge bg-warning ms-1">Expires Soon</span>
+                                            [% ELSIF certificate_expired %]
+                                                <span class="badge bg-danger ms-1">Expired</span>
+                                            [% END %]
+                                        </small>
+                                    [% END %]
+                                [% ELSE %]
+                                    <span class="badge bg-danger">Not uploaded</span> No certificate currently uploaded.
+                                [% END %]
+                            </div>
+                        </div>
+                    
+                        <div class="mb-3">
+                            <label for="private_key_upload" class="form-label">Private Key File</label>
+                            <input class="form-control" type="file" name="private_key_upload" id="private_key_upload"
+                                   accept=".pem,.key" [% IF !openssl_available %]disabled="disabled"[% END %] />
+                            <div class="form-text">
+                                [% IF !openssl_available %]
+                                    Private key upload disabled – install server dependencies to enable.
+                                [% ELSIF private_key_file %]
+                                    <span class="badge bg-success">Present</span> Current private key is securely stored and encrypted.
+                                    [% IF private_key_upload_date %]
+                                        <br><small class="text-muted">Uploaded: [% private_key_upload_date | $KohaDates %]</small>
+                                    [% END %]
+                                [% ELSE %]
+                                    <span class="badge bg-danger">Not uploaded</span> No private key currently uploaded.
+                                [% END %]
+                            </div>
+                        </div>
+                    </fieldset>
+
                     [% IF registers_by_library && registers_by_library.size > 0 %]
-                    <fieldset class="rows">
+                    <fieldset>
                         <legend>Printer Settings</legend>
-                        <div class="hint">Configure printers for each cash register. If no printer is specified, the system default printer will be used.</div>
+                        <div class="form-text mb-3">Configure printers for each cash register. If no printer is specified, the system default printer will be used.</div>
 
                         [% IF current_register_id %]
-                        <div class="alert alert-info" style="margin: 10px 0;">
+                        <div class="alert alert-info mb-3">
                             <strong>Current Session Register:</strong> You are currently configured to use register ID [% current_register_id | html %]
                         </div>
                         [% END %]
 
-                        <div style="margin-bottom: 15px;">
-                            <button type="button" id="refresh_printers">Refresh Printer List</button>
-                            <div id="printer_status" class="hint" style="display: inline-block; margin-left: 10px;"></div>
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-secondary" id="refresh_printers">Refresh Printer List</button>
+                            <div id="printer_status" class="form-text d-inline-block ms-2"></div>
                         </div>
 
                         [% FOREACH library_code IN registers_by_library.keys.sort %]
                         [% library_registers = registers_by_library.$library_code %]
                         [% first_register = library_registers.0 %]
 
-                        <fieldset class="library-group" style="margin-bottom: 20px; border: 1px solid #ddd; padding: 10px;">
-                            <legend style="font-weight: bold; color: #333;">
+                        <fieldset class="border rounded p-3 mb-4">
+                            <legend class="fw-bold text-dark fs-6 px-2">
                                 [% first_register.library.branchname | html %]
                                 ([% library_code | html %])
                                 [% IF library_code == current_library_id %]
-                                    <span style="color: #28a745; font-weight: normal;"> - Your Current Library</span>
+                                    <span class="text-success fw-normal"> - Your Current Library</span>
                                 [% END %]
                             </legend>
 
-                            <ol>
+                            <div class="list-group">
                                 [% FOREACH register IN library_registers %]
-                                <li [% IF register.is_current %]style="background-color: #e8f5e8; padding: 5px; border-radius: 3px;"[% END %]>
-                                    <label for="register_printer_[% register.id %]">
+                                <div class="mb-3[% IF register.is_current %] bg-light p-2 rounded[% END %]">
+                                    <label for="register_printer_[% register.id %]" class="form-label">
                                         [% register.name | html %] ([% register.description | html %])
                                         [% IF register.is_current %]
-                                            <strong style="color: #28a745;"> ← Current Session Register</strong>
+                                            <span class="badge bg-success ms-2">Current Session Register</span>
                                         [% END %]
                                     </label>
                                     <input type="hidden" name="register_id" value="[% register.id %]" />
-                                    <select name="register_printer" id="register_printer_[% register.id %]" class="register_printer_select">
+                                    <select name="register_printer" id="register_printer_[% register.id %]" class="form-select register_printer_select">
                                         <option value="">Use system default printer</option>
                                         [% IF register_mappings.${register.id} %]
                                             <option value="[% register_mappings.${register.id} | html %]" selected="selected">[% register_mappings.${register.id} | html %]</option>
                                         [% END %]
                                     </select>
-                                </li>
+                                </div>
                                 [% END %]
-                            </ol>
+                            </div>
                         </fieldset>
                         [% END %]
                     </fieldset>
@@ -169,7 +199,7 @@
                     
                     <fieldset class="action">
                         <input type="submit" class="btn btn-primary" value="Save configuration" />
-                        <a class="cancel" href="/cgi-bin/koha/plugins/plugins-home.pl">Cancel</a>
+                        <a class="btn btn-secondary ms-2" href="/cgi-bin/koha/plugins/plugins-home.pl">Cancel</a>
                     </fieldset>
                 </form>
             </main>

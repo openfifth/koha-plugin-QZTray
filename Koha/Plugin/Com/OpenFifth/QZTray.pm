@@ -5,7 +5,7 @@ use Modern::Perl;
 use base qw(Koha::Plugins::Base);
 
 use C4::Context;
-use Koha::DateUtils;
+use Koha::DateUtils qw( dt_from_string );
 use JSON qw( decode_json );
 use Koha::Encryption;
 use Koha::Exceptions;
@@ -109,9 +109,30 @@ sub configure {
             };
         }
 
+        # Get upload dates and certificate expiry information
+        my $cert_upload_date = $self->retrieve_data('certificate_upload_date');
+        my $key_upload_date = $self->retrieve_data('private_key_upload_date');
+        my $cert_expiry_date = $self->retrieve_data('certificate_expiry_date');
+        my $cert_expires_soon = $self->retrieve_data('certificate_expires_soon');
+        my $cert_expired = $self->retrieve_data('certificate_expired');
+
+        # If we have a certificate but no expiry info, try to parse it now
+        if ($cert_exists && !$cert_expiry_date && $openssl_available) {
+            $self->_update_certificate_expiry_info();
+            # Reload the data after potential update
+            $cert_expiry_date = $self->retrieve_data('certificate_expiry_date');
+            $cert_expires_soon = $self->retrieve_data('certificate_expires_soon');
+            $cert_expired = $self->retrieve_data('certificate_expired');
+        }
+
         $template->param(
             certificate_file  => $cert_exists ? 'ENCRYPTED' : '',
             private_key_file  => $key_exists ? 'ENCRYPTED' : '',
+            certificate_upload_date => $cert_upload_date,
+            private_key_upload_date => $key_upload_date,
+            certificate_expiry_date => $cert_expiry_date,
+            certificate_expires_soon => $cert_expires_soon,
+            certificate_expired => $cert_expired,
             register_mappings => $mappings_data,
             registers_by_library => \%registers_by_library,
             current_library_id => $current_library_id,
@@ -148,6 +169,9 @@ sub configure {
                             action => 'certificate_upload'
                         });
                     } else {
+                        # Store upload timestamp
+                        $self->store_data({ certificate_upload_date => dt_from_string()->ymd() });
+
                         $self->_log_event('info', 'Certificate uploaded successfully', {
                             action => 'certificate_upload',
                             file_size => length($cert_content)
@@ -186,6 +210,9 @@ sub configure {
                             action => 'private_key_upload'
                         });
                     } else {
+                        # Store upload timestamp
+                        $self->store_data({ private_key_upload_date => dt_from_string()->ymd() });
+
                         $self->_log_event('info', 'Private key uploaded successfully', {
                             action => 'private_key_upload',
                             file_size => length($key_content)
@@ -418,14 +445,30 @@ sub _validate_certificate {
         return { valid => 0, error => 'Certificate must be in PEM format' };
     }
 
-    # Attempt to parse the certificate
+    # Attempt to parse the certificate and extract expiry
+    my $expiry_info = {};
     eval {
         my $x509 = Crypt::OpenSSL::X509->new_from_string($cert_content);
         # Basic parsing validation - certificate can be loaded
+
+        # Extract expiry date
+        my $not_after = $x509->notAfter();
+        if ($not_after) {
+            $expiry_info = $self->_parse_certificate_expiry($not_after);
+        }
     };
 
     if ($@) {
         return { valid => 0, error => 'Invalid certificate format or corrupted file' };
+    }
+
+    # Store expiry information if available
+    if ($expiry_info->{expiry_date}) {
+        $self->store_data({
+            certificate_expiry_date => $expiry_info->{expiry_date},
+            certificate_expires_soon => $expiry_info->{expires_soon},
+            certificate_expired => $expiry_info->{expired}
+        });
     }
 
     return { valid => 1 };
@@ -533,6 +576,74 @@ sub _escape_js_string {
     $string =~ s/([\x00-\x1F\x7F-\x9F])/sprintf("\\u%04X", ord($1))/ge;
 
     return $string;
+}
+
+sub _parse_certificate_expiry {
+    my ($self, $not_after_string) = @_;
+
+    return {} unless $not_after_string;
+
+    my $result = {};
+
+    # Parse OpenSSL date format: "Dec 31 23:59:59 2025 GMT"
+    if ($not_after_string =~ /^(\w{3})\s+(\d{1,2})\s+(\d{2}):(\d{2}):(\d{2})\s+(\d{4})\s+GMT$/) {
+        my ($month_str, $day, $hour, $min, $sec, $year) = ($1, $2, $3, $4, $5, $6);
+
+        # Convert month name to number
+        my %months = (
+            'Jan' => 1, 'Feb' => 2, 'Mar' => 3, 'Apr' => 4,
+            'May' => 5, 'Jun' => 6, 'Jul' => 7, 'Aug' => 8,
+            'Sep' => 9, 'Oct' => 10, 'Nov' => 11, 'Dec' => 12
+        );
+
+        my $month = $months{$month_str};
+        if ($month) {
+            my $expiry_date = sprintf('%04d-%02d-%02d', $year, $month, $day);
+            $result->{expiry_date} = $expiry_date;
+
+            # Calculate if certificate expires soon (within 30 days) or has expired
+            my $expiry_dt = dt_from_string("$expiry_date 23:59:59");
+            my $now_dt = dt_from_string();
+            my $warning_dt = $now_dt->clone->add(days => 30);
+
+            $result->{expired} = $expiry_dt < $now_dt ? 1 : 0;
+            $result->{expires_soon} = (!$result->{expired} && $expiry_dt < $warning_dt) ? 1 : 0;
+        }
+    }
+
+    return $result;
+}
+
+sub _update_certificate_expiry_info {
+    my ($self) = @_;
+
+    return unless $OPENSSL_AVAILABLE;
+
+    my $cert_content = $self->retrieve_encrypted_data('certificate_file');
+    return unless $cert_content;
+
+    eval {
+        my $x509 = Crypt::OpenSSL::X509->new_from_string($cert_content);
+        my $not_after = $x509->notAfter();
+
+        if ($not_after) {
+            my $expiry_info = $self->_parse_certificate_expiry($not_after);
+            if ($expiry_info->{expiry_date}) {
+                $self->store_data({
+                    certificate_expiry_date => $expiry_info->{expiry_date},
+                    certificate_expires_soon => $expiry_info->{expires_soon},
+                    certificate_expired => $expiry_info->{expired}
+                });
+            }
+        }
+    };
+
+    if ($@) {
+        $self->_log_event('warn', 'Failed to update certificate expiry info', {
+            error => "$@",
+            action => 'update_certificate_expiry_info'
+        });
+    }
 }
 
 
