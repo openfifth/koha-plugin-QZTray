@@ -584,7 +584,7 @@ sub _escape_js_string {
     $string =~ s/\r/\\r/g;       # Carriage return
     $string =~ s/\t/\\t/g;       # Tab
     $string =~ s/\f/\\f/g;       # Form feed
-    $string =~ s/\b/\\b/g;       # Backspace
+    $string =~ s/\x08/\\b/g;     # Backspace (use \x08, not \b which is word boundary)
     $string =~ s/\//\\\//g;      # Forward slash (optional but safer)
 
     # Escape Unicode control characters and non-printable characters
