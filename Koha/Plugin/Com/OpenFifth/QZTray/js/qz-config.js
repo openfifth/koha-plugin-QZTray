@@ -89,13 +89,18 @@
         getPrinter: function() {
             // Get the actual current register (from form or session)
             var activeRegister = this.getCurrentRegister();
+            console.log('QZ Tray Config: Active register:', activeRegister);
+            console.log('QZ Tray Config: Register mappings:', this.registerMappings);
 
             // If we have an active register and a specific mapping for it, use that
             if (activeRegister && this.registerMappings[activeRegister]) {
-                return this.registerMappings[activeRegister];
+                var printer = this.registerMappings[activeRegister];
+                console.log('QZ Tray Config: Mapped printer for register', activeRegister + ':', printer);
+                return printer;
             }
 
             // Otherwise, return empty string to use system default
+            console.log('QZ Tray Config: No mapping found, using system default');
             return '';
         },
 
