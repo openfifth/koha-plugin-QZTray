@@ -75,6 +75,22 @@
                     <input type="hidden" name="method" value="[% METHOD %]"/>
                     <input type="hidden" name="save" value="1" />
 
+                    <div id="toolbar" class="btn-toolbar sticky">
+                        <button type="submit" name="save_printer_config" class="btn btn-primary">
+                            <i class="fa fa-save"></i> Save
+                        </button>
+                        <a class="btn btn-link" href="/cgi-bin/koha/plugins/plugins-home.pl">
+                            <i class="fa fa-times"></i> Cancel
+                        </a>
+                    </div>
+
+                    <fieldset>
+                        <legend>General Settings</legend>
+                        <input type="checkbox" id="debug_mode" name="debug_mode" value="1" [% IF debug_mode %]checked="checked"[% END %] />
+                        <label for="debug_mode">Enable debug mode</label>
+                        <div class="hint">When enabled, detailed diagnostic messages will be logged to the browser console. Useful for troubleshooting printer selection and drawer operation issues.</div>
+                    </fieldset>
+
                     <fieldset>
                         <legend>
                             Certificate Configuration
@@ -206,28 +222,6 @@
                         <p>No cash registers are configured for any library. Please contact your system administrator to set up cash registers before configuring printers.</p>
                     </div>
                     [% END %]
-
-                    <fieldset>
-                        <legend>General Settings</legend>
-                        <div class="form-check mb-3">
-                            <input type="checkbox" class="form-check-input" id="debug_mode" name="debug_mode" value="1" [% IF debug_mode %]checked="checked"[% END %] />
-                            <label class="form-check-label" for="debug_mode">
-                                Enable Debug Mode
-                            </label>
-                            <small class="form-text text-muted d-block mt-1">
-                                When enabled, detailed diagnostic messages will be logged to the browser console. Useful for troubleshooting printer selection and drawer operation issues.
-                            </small>
-                        </div>
-                    </fieldset>
-
-                    <div id="toolbar" class="btn-toolbar sticky">
-                        <button type="submit" name="save_printer_config" class="btn btn-primary">
-                            <i class="fa fa-save"></i> Save printer configuration
-                        </button>
-                        <a class="btn btn-link" href="/cgi-bin/koha/plugins/plugins-home.pl">
-                            <i class="fa fa-times"></i> Cancel
-                        </a>
-                    </div>
                 </form>
             </main>
         </div>

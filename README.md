@@ -38,6 +38,7 @@ sudo apt install libcrypt-openssl-x509-perl
 ## Installation
 
 1. **Install server dependencies**:
+
    ```bash
    sudo apt install libcrypt-openssl-x509-perl
    ```
@@ -78,6 +79,7 @@ Configure printers for each cash register:
 ### 3. Permissions
 
 Ensure users have appropriate cash management permissions:
+
 - `cash_management` → `takepayment` for payment operations
 - `cash_management` → `cashup` for register management
 - `cash_management` → `anonymous_refund` for refund operations
@@ -110,6 +112,7 @@ The plugin includes optimized drawer control codes for:
 - Other ESC/POS compatible printers (using default codes)
 
 **Note for Citizen CT-S2000**: If your printer driver settings force drawer opening on every print, consider setting up two printer instances:
+
 - One for receipts (driver set to "Never" open drawer)
 - One for drawer control (Generic/Text Only driver) configured in this plugin
 
@@ -118,16 +121,19 @@ The plugin includes optimized drawer control codes for:
 ### Common Issues
 
 **"QZ Tray not connected"**
+
 - Ensure QZ Tray is running on the client machine
 - Check network connectivity
 - Verify browser allows unsigned applets (if using development certificates)
 
 **"Printer not found"**
+
 - Click "Refresh Printer List" to detect available printers
 - Verify printer is powered on and connected
 - Check printer network configuration
 
 **"Certificate errors"**
+
 - Ensure certificate and private key match
 - Verify files are in PEM format
 - Check that encryption is configured in Koha
@@ -135,6 +141,7 @@ The plugin includes optimized drawer control codes for:
 ### Debug Information
 
 Enable debug logging in Koha to see detailed QZ Tray communication logs:
+
 - Check the `plugin.qztray` log category
 - Monitor JavaScript console for client-side errors
 
@@ -172,6 +179,7 @@ This plugin is released under the GNU General Public License v3.0, consistent wi
 
 ## Version History
 
+- **v1.0.12**: Rearranged configuration page for better UX
 - **v1.0.11**: Added configurable debug mode for console logging; improved configuration UI with sticky toolbar and updated button styling
 - **v1.0.10**: Critical fix for JavaScript string escaping bug; added comprehensive debug logging for printer selection
 - **v1.0.8**: Fixed invalid CSS selector in printer list refresh functionality
@@ -181,3 +189,4 @@ This plugin is released under the GNU General Public License v3.0, consistent wi
 - **v1.0.2**: Added register-specific printer mappings
 - **v1.0.1**: Security and error handling improvements
 - **v1.0.0**: Initial release with basic QZ Tray integration
+
