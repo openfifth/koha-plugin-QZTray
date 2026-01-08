@@ -172,6 +172,7 @@ This plugin is released under the GNU General Public License v3.0, consistent wi
 
 ## Version History
 
+- **v1.0.8**: Fixed invalid CSS selector in printer list refresh functionality
 - **v1.0.7**: Added support for Citizen CT-S2000 printer with optimized drawer control codes
 - **v1.0.4**: Enhanced register-library grouping and session highlighting
 - **v1.0.3**: Improved form-based register detection

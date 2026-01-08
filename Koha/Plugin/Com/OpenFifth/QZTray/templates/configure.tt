@@ -324,7 +324,7 @@ documentReady(function() {
         var currentValue = select.value;
 
         // Clear existing options except the default
-        var options = select.querySelectorAll('option[value!=""]');
+        var options = select.querySelectorAll('option:not([value=""])');
         options.forEach(function(option) {
             option.remove();
         });
