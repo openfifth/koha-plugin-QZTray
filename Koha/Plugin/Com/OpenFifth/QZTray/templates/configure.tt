@@ -220,10 +220,14 @@
                         </div>
                     </fieldset>
 
-                    <fieldset class="action">
-                        <input type="submit" name="save_printer_config" class="btn btn-success" value="Save Printer Configuration" />
-                        <a class="btn btn-secondary ms-2" href="/cgi-bin/koha/plugins/plugins-home.pl">Cancel</a>
-                    </fieldset>
+                    <div id="toolbar" class="btn-toolbar sticky">
+                        <button type="submit" name="save_printer_config" class="btn btn-primary">
+                            <i class="fa fa-save"></i> Save printer configuration
+                        </button>
+                        <a class="btn btn-link" href="/cgi-bin/koha/plugins/plugins-home.pl">
+                            <i class="fa fa-times"></i> Cancel
+                        </a>
+                    </div>
                 </form>
             </main>
         </div>
