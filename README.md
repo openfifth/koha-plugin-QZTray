@@ -172,6 +172,7 @@ This plugin is released under the GNU General Public License v3.0, consistent wi
 
 ## Version History
 
+- **v1.0.11**: Added configurable debug mode for console logging; improved configuration UI with sticky toolbar and updated button styling
 - **v1.0.10**: Critical fix for JavaScript string escaping bug; added comprehensive debug logging for printer selection
 - **v1.0.8**: Fixed invalid CSS selector in printer list refresh functionality
 - **v1.0.7**: Added support for Citizen CT-S2000 printer with optimized drawer control codes
