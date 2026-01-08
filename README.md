@@ -5,6 +5,7 @@ A Koha plugin that integrates QZ Tray printing functionality for automatic cash 
 ## Features
 
 - **Cash Drawer Integration**: Automatically open cash drawers during payment transactions
+- **Quick Drawer Access**: One-click button on POS page to open cash drawer without processing a transaction
 - **Register-Specific Printer Configuration**: Map specific printers to individual cash registers
 - **Multi-Library Support**: Configure printers across multiple library branches
 - **Secure Certificate Management**: Encrypted storage of QZ Tray security certificates
@@ -93,9 +94,19 @@ Once configured, the plugin automatically:
 3. **Opens Cash Drawer**: Sends drawer open commands during transactions
 4. **Handles Errors**: Displays user-friendly error messages
 
+### Quick Drawer Access
+
+On the Point of Sale page, a toolbar with an "Open cash drawer" button appears above the page heading. This allows staff to open the register for:
+
+- Making change without processing a transaction
+- Accessing physical cash for non-sale purposes
+- Testing drawer functionality
+
+The button is disabled until QZ Tray initializes, then becomes active with visual feedback during operation.
+
 ### Supported Pages
 
-- Point of Sale payment confirmation
+- **Point of Sale** (pos/pay.pl): Quick access button plus automatic drawer opening on payment confirmation
 - Register cashup operations
 - Member account payments
 - Refund transactions
@@ -161,6 +172,7 @@ Koha/Plugin/Com/OpenFifth/QZTray/
 │   ├── qz-auth.js              # Authentication handling
 │   ├── qz-button-manager.js    # UI button replacement
 │   ├── qz-page-detector.js     # Page detection logic
+│   ├── qz-pos-toolbar.js       # POS toolbar with quick access button
 │   └── qz-tray-integration.js  # Main integration
 ├── api/
 │   ├── openapi.json            # API specification
