@@ -35,7 +35,11 @@
                 printer.indexOf('Metapace T') !== -1) {
                 code = [chr(27) + chr(112) + chr(48) + chr(55) + chr(121)];
             }
-            if (printer.indexOf('Citizen CBM1000') !== -1) {
+            if (printer.indexOf('Citizen CBM1000') !== -1 ||
+                printer.indexOf('Citizen CT-S2000') !== -1 ||
+                printer.indexOf('CT-S2000') !== -1 ||
+                printer.indexOf('Citizen CTS2000') !== -1 ||
+                printer.indexOf('CTS2000') !== -1) {
                 code = [chr(27) + chr(112) + chr(0) + chr(50) + chr(250)];
             }
             return code;
