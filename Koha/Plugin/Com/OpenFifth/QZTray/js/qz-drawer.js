@@ -69,8 +69,10 @@
                     return self._getPrinter();
                 })
                 .then(function(printer) {
-                    console.log('QZ Tray: Using printer:', printer);
-                    console.log('QZ Tray: Drawer code for this printer:', self.getDrawerCode(printer));
+                    if (window.qzConfig.debugMode) {
+                        console.log('QZ Tray: Using printer:', printer);
+                        console.log('QZ Tray: Drawer code for this printer:', self.getDrawerCode(printer));
+                    }
                     return self._sendDrawerCommand(printer);
                 })
                 .then(function() {

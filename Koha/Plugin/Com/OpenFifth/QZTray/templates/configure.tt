@@ -206,8 +206,20 @@
                         <p>No cash registers are configured for any library. Please contact your system administrator to set up cash registers before configuring printers.</p>
                     </div>
                     [% END %]
-                    
-                    
+
+                    <fieldset>
+                        <legend>General Settings</legend>
+                        <div class="form-check mb-3">
+                            <input type="checkbox" class="form-check-input" id="debug_mode" name="debug_mode" value="1" [% IF debug_mode %]checked="checked"[% END %] />
+                            <label class="form-check-label" for="debug_mode">
+                                Enable Debug Mode
+                            </label>
+                            <small class="form-text text-muted d-block mt-1">
+                                When enabled, detailed diagnostic messages will be logged to the browser console. Useful for troubleshooting printer selection and drawer operation issues.
+                            </small>
+                        </div>
+                    </fieldset>
+
                     <fieldset class="action">
                         <input type="submit" name="save_printer_config" class="btn btn-success" value="Save Printer Configuration" />
                         <a class="btn btn-secondary ms-2" href="/cgi-bin/koha/plugins/plugins-home.pl">Cancel</a>

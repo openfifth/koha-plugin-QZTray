@@ -125,6 +125,9 @@ sub configure {
             $cert_expired = $self->retrieve_data('certificate_expired');
         }
 
+        # Get debug mode setting
+        my $debug_mode = $self->retrieve_data('debug_mode') || 0;
+
         $template->param(
             certificate_file  => $cert_exists ? 'ENCRYPTED' : '',
             private_key_file  => $key_exists ? 'ENCRYPTED' : '',
@@ -137,6 +140,7 @@ sub configure {
             registers_by_library => \%registers_by_library,
             current_library_id => $current_library_id,
             current_register_id => $current_register_id,
+            debug_mode => $debug_mode,
             openssl_available => $openssl_available,
             dependency_warning => $openssl_available ? 0 : 1,
             dependency_message => $openssl_available ? '' : $dependency_check->{message},
@@ -255,9 +259,13 @@ sub configure {
                 }
             }
 
+            # Handle debug mode setting
+            my $debug_mode = $cgi->param('debug_mode') ? 1 : 0;
+
             $self->store_data(
                 {
                     register_printer_mappings => JSON::encode_json($mappings_data),
+                    debug_mode => $debug_mode,
                 }
             );
 
@@ -373,6 +381,9 @@ sub _generate_qz_js {
     # Get current register ID if available
     my $current_register = C4::Context->userenv->{'register_id'} || '';
 
+    # Get debug mode setting
+    my $debug_mode = $self->retrieve_data('debug_mode') || 0;
+
     # Properly escape JavaScript strings
     my $mappings_json = $self->_escape_js_string(JSON::encode_json($mappings_data));
     my $current_register_escaped = $self->_escape_js_string($current_register);
@@ -392,7 +403,8 @@ sub _generate_qz_js {
 window.qzConfig = {
     apiBase: '$api_base',
     registerMappings: JSON.parse('$mappings_json'),
-    currentRegister: '$current_register_escaped'
+    currentRegister: '$current_register_escaped',
+    debugMode: $debug_mode
 };
 </script>
 
