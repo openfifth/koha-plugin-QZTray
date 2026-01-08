@@ -98,6 +98,21 @@ Once configured, the plugin automatically:
 - Member account payments
 - Refund transactions
 
+### Supported Printers
+
+The plugin includes optimized drawer control codes for:
+
+- **Bixolon SRP-350 series**
+- **Epson TM-T88V**
+- **Metapace T-series**
+- **Citizen CBM1000**
+- **Citizen CT-S2000** (all name variations)
+- Other ESC/POS compatible printers (using default codes)
+
+**Note for Citizen CT-S2000**: If your printer driver settings force drawer opening on every print, consider setting up two printer instances:
+- One for receipts (driver set to "Never" open drawer)
+- One for drawer control (Generic/Text Only driver) configured in this plugin
+
 ## Troubleshooting
 
 ### Common Issues
@@ -157,6 +172,7 @@ This plugin is released under the GNU General Public License v3.0, consistent wi
 
 ## Version History
 
+- **v1.0.7**: Added support for Citizen CT-S2000 printer with optimized drawer control codes
 - **v1.0.4**: Enhanced register-library grouping and session highlighting
 - **v1.0.3**: Improved form-based register detection
 - **v1.0.2**: Added register-specific printer mappings
