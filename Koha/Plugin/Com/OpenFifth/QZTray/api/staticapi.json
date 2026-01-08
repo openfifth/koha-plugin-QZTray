@@ -169,6 +169,23 @@
       }
     }
   },
+  "/js/qz-pos-toolbar.js": {
+    "get": {
+      "x-mojo-to": "Static#get",
+      "tags": ["pluginStatic", "qztray"],
+      "responses": {
+        "200": {
+          "description": "QZ Tray POS toolbar module",
+          "schema": {
+            "type": "file"
+          }
+        },
+        "404": {
+          "description": "File not found"
+        }
+      }
+    }
+  },
   "/js/qz-tray-integration.js": {
     "get": {
       "x-mojo-to": "Static#get",

@@ -415,6 +415,7 @@ window.qzConfig = {
 <script type="text/javascript" src="$static_base/js/qz-drawer.js"></script>
 <script type="text/javascript" src="$static_base/js/qz-page-detector.js"></script>
 <script type="text/javascript" src="$static_base/js/qz-button-manager.js"></script>
+<script type="text/javascript" src="$static_base/js/qz-pos-toolbar.js"></script>
 <script type="text/javascript" src="$static_base/js/qz-tray-integration.js"></script>
     };
 }

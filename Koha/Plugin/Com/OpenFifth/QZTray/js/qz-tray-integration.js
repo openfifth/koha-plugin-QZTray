@@ -13,7 +13,8 @@
         typeof QZAuth === 'undefined' ||
         typeof QZDrawer === 'undefined' ||
         typeof QZPageDetector === 'undefined' ||
-        typeof QZButtonManager === 'undefined') {
+        typeof QZButtonManager === 'undefined' ||
+        typeof QZPosToolbar === 'undefined') {
         console.error('QZ Tray: Required modules not loaded. Please ensure all JavaScript files are included.');
         return;
     }
@@ -26,6 +27,7 @@
         drawer: null,
         pageDetector: null,
         buttonManager: null,
+        posToolbar: null,
         initialized: false,
 
         /**
@@ -46,6 +48,10 @@
             this.drawer = new QZDrawer(this.config, this.messaging, this.auth);
             this.pageDetector = new QZPageDetector();
             this.buttonManager = new QZButtonManager(this.drawer, this.pageDetector);
+            this.posToolbar = new QZPosToolbar(this.drawer);
+
+            // Inject POS toolbar early (before full initialization)
+            this.posToolbar.initialize(false);
 
             // Initialize configuration and check certificate status
             return this.config.initialize().then(function(status) {
@@ -54,6 +60,9 @@
 
                 // Initialize button replacement
                 this.buttonManager.initialize();
+
+                // Enable POS toolbar button now that drawer is ready
+                this.posToolbar.initialize(true);
 
                 return status;
             }.bind(this)).catch(function(error) {
@@ -92,6 +101,7 @@
                 },
                 page: this.pageDetector.getDebugInfo(),
                 buttons: this.buttonManager.getDebugInfo(),
+                posToolbar: this.posToolbar.getDebugInfo(),
                 drawer: {
                     operationInProgress: this.drawer.isOperationInProgress()
                 }
@@ -104,6 +114,9 @@
         reset: function() {
             if (this.buttonManager) {
                 this.buttonManager.resetButtons();
+            }
+            if (this.posToolbar) {
+                this.posToolbar.remove();
             }
             this.initialized = false;
             console.log('QZ Tray: Integration reset');
@@ -170,11 +183,14 @@
     window.chr = chr;
     window.drawerCode = drawerCode;
 
-    // Auto-initialize when DOM is ready
+    // Auto-initialize when DOM is ready (or immediately if already ready)
     function documentReady(fn) {
-        if (document.readyState !== 'loading') {
-            fn();
-        } else {
+        // Run immediately if DOM is already interactive or complete
+        if (document.readyState === 'interactive' || document.readyState === 'complete') {
+            // Use setTimeout to avoid blocking the current execution
+            setTimeout(fn, 0);
+        } else if (document.readyState === 'loading') {
+            // Wait for DOMContentLoaded if still loading
             document.addEventListener('DOMContentLoaded', fn);
         }
     }
