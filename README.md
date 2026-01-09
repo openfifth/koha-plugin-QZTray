@@ -191,6 +191,8 @@ This plugin is released under the GNU General Public License v3.0, consistent wi
 
 ## Version History
 
+- **v1.1.1**: Performance optimization - JavaScript now loads only on required pages instead of system-wide; fixed FOUC (flash of unstyled content) by removing split initialization
+- **v1.1.0**: Added quick cash drawer open button to POS page toolbar; wrapped console.log statements in debug mode checks
 - **v1.0.12**: Rearranged configuration page for better UX
 - **v1.0.11**: Added configurable debug mode for console logging; improved configuration UI with sticky toolbar and updated button styling
 - **v1.0.10**: Critical fix for JavaScript string escaping bug; added comprehensive debug logging for printer selection
