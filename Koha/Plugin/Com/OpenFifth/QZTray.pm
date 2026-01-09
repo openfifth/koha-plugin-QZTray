@@ -5,6 +5,7 @@ use Modern::Perl;
 use base qw(Koha::Plugins::Base);
 
 use C4::Context;
+use CGI;
 use Koha::DateUtils qw( dt_from_string );
 use JSON qw( decode_json );
 use Koha::Encryption;
@@ -328,9 +329,39 @@ sub configure {
 sub intranet_js {
     my ($self) = @_;
 
-    # Always load QZ Tray JavaScript - it can function without certificates
-    # Certificate validation is optional for development/testing scenarios
-    return $self->_generate_qz_js();
+    # Only load QZ Tray JavaScript on pages where it's needed
+    # This prevents unnecessary JavaScript loading on all other pages
+    # Use SCRIPT_NAME environment variable which works under both CGI and Plack
+    my $script_name = $ENV{SCRIPT_NAME} || '';
+
+    # Get debug mode to conditionally log
+    my $debug_mode = $self->retrieve_data('debug_mode') || 0;
+
+    # List of script patterns that need QZ Tray integration
+    # Using partial path matching since SCRIPT_NAME may vary
+    my @supported_patterns = (
+        'pos/pay.pl',
+        'pos/register.pl',
+        'pos/registers.pl',
+        'members/boraccount.pl',
+        'members/paycollect.pl',
+    );
+
+    # Check if current script matches any supported pattern
+    foreach my $pattern (@supported_patterns) {
+        if ($script_name =~ /\Q$pattern\E$/) {
+            if ($debug_mode) {
+                $self->_log_event('debug', 'Loading QZ Tray JavaScript', {
+                    script_name => $script_name,
+                    pattern => $pattern
+                });
+            }
+            return $self->_generate_qz_js();
+        }
+    }
+
+    # Return empty string for unsupported pages
+    return '';
 }
 
 sub install {
