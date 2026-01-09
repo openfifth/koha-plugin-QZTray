@@ -35,11 +35,15 @@
          */
         initialize: function(configData) {
             if (this.initialized) {
-                console.log('QZ Tray: Already initialized');
+                if (window.qzConfig.debugMode) {
+                    console.log('QZ Tray: Already initialized');
+                }
                 return Promise.resolve();
             }
 
-            console.log('QZ Tray: Initializing integration components');
+            if (window.qzConfig.debugMode) {
+                console.log('QZ Tray: Initializing integration components');
+            }
 
             // Initialize modules
             this.config = new QZConfig(configData || window.qzConfig || {});
@@ -56,7 +60,10 @@
             // Initialize configuration and check certificate status
             return this.config.initialize().then(function(status) {
                 this.initialized = true;
-                console.log('QZ Tray: Integration initialized successfully');
+
+                if (window.qzConfig.debugMode) {
+                    console.log('QZ Tray: Integration initialized successfully');
+                }
 
                 // Initialize button replacement
                 this.buttonManager.initialize();
@@ -119,7 +126,9 @@
                 this.posToolbar.remove();
             }
             this.initialized = false;
-            console.log('QZ Tray: Integration reset');
+            if (window.qzConfig.debugMode) {
+                console.log('QZ Tray: Integration reset');
+            }
         }
     };
 

@@ -37,14 +37,20 @@
                 credentials: 'same-origin'
             }).then(function(response) {
                 if (response.ok) {
-                    console.log('QZ Tray certificates: Configured and ready');
+                    if (window.qzConfig.debugMode) {
+                        console.log('QZ Tray certificates: Configured and ready');
+                    }
                     return { configured: true, message: 'Configured and ready' };
                 } else {
-                    console.log('QZ Tray certificates: Not configured - operations will require user trust prompts');
+                    if (window.qzConfig.debugMode) {
+                        console.log('QZ Tray certificates: Not configured - operations will require user trust prompts');
+                    }
                     return { configured: false, message: 'Not configured - operations will require user trust prompts' };
                 }
             }).catch(function(error) {
-                console.log('QZ Tray certificates: Unable to check configuration status');
+                if (window.qzConfig.debugMode) {
+                    console.log('QZ Tray certificates: Unable to check configuration status');
+                }
                 return { configured: false, message: 'Unable to check configuration status', error: error };
             });
         },

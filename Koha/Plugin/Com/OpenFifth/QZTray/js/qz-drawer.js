@@ -26,7 +26,9 @@
 
             // Handle case where printer is undefined or null
             if (!printer || typeof printer !== 'string') {
-                console.log('No printer name provided, using default drawer code');
+                if (window.qzConfig.debugMode) {
+                    console.log('No printer name provided, using default drawer code');
+                }
                 return code;
             }
 
@@ -53,7 +55,9 @@
 
             // Prevent duplicate operations
             if (this.operationInProgress) {
-                console.log('Drawer operation already in progress, skipping');
+                if (window.qzConfig.debugMode) {
+                    console.log('Drawer operation already in progress, skipping');
+                }
                 return Promise.reject(new Error('Operation already in progress'));
             }
 
@@ -65,7 +69,9 @@
             return qz.websocket
                 .connect()
                 .then(function() {
-                    console.log('QZ Tray connected successfully');
+                    if (window.qzConfig.debugMode) {
+                        console.log('QZ Tray connected successfully');
+                    }
                     return self._getPrinter();
                 })
                 .then(function(printer) {
@@ -76,7 +82,9 @@
                     return self._sendDrawerCommand(printer);
                 })
                 .then(function() {
-                    console.log('Cash drawer command sent successfully');
+                    if (window.qzConfig.debugMode) {
+                        console.log('Cash drawer command sent successfully');
+                    }
                     self.messaging.showSuccess('Cash drawer opened successfully');
                     return self._disconnect();
                 })
