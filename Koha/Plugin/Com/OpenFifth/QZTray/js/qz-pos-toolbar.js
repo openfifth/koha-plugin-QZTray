@@ -15,27 +15,20 @@
     QZPosToolbar.prototype = {
         /**
          * Initialize the toolbar on the POS page
-         * Can be called in two phases:
-         * 1. Early DOM injection (drawer not yet ready)
-         * 2. Enable button once drawer is ready
+         * Only called once when QZ Tray is fully initialized
          */
-        initialize: function(drawerReady) {
+        initialize: function() {
             // Only run on the POS page (pos/pay.pl)
             if (window.location.href.indexOf('pos/pay.pl') === -1) {
                 return;
             }
 
-            // If toolbar doesn't exist yet, create it
+            // Create and inject toolbar if it doesn't exist
             if (!this.toolbarElement) {
-                console.log('QZ Tray: Injecting POS toolbar early');
+                if (window.qzConfig.debugMode) {
+                    console.log('QZ Tray: Creating POS toolbar');
+                }
                 this._createToolbar();
-            }
-
-            // If drawer is ready, enable the button
-            if (drawerReady && this.openDrawerButton) {
-                this.openDrawerButton.disabled = false;
-                this.openDrawerButton.title = '';
-                console.log('QZ Tray: POS toolbar button enabled');
             }
         },
 
@@ -56,7 +49,9 @@
             // Insert toolbar before the h1 heading
             h1Element.parentNode.insertBefore(this.toolbarElement, h1Element);
 
-            console.log('QZ Tray: POS toolbar added successfully');
+            if (window.qzConfig.debugMode) {
+                console.log('QZ Tray: POS toolbar added successfully');
+            }
         },
 
         /**
@@ -85,8 +80,6 @@
             this.openDrawerButton.type = 'button';
             this.openDrawerButton.className = 'btn btn-default';
             this.openDrawerButton.id = 'qz-open-drawer';
-            this.openDrawerButton.disabled = true; // Disabled until QZ Tray is ready
-            this.openDrawerButton.title = 'Initializing QZ Tray...';
 
             // Add icon
             var icon = document.createElement('i');
@@ -125,11 +118,15 @@
             icon.setAttribute('aria-hidden', 'true');
             this.openDrawerButton.insertBefore(icon, this.openDrawerButton.firstChild);
 
-            console.log('QZ Tray: Opening drawer from POS toolbar');
+            if (window.qzConfig.debugMode) {
+                console.log('QZ Tray: Opening drawer from POS toolbar');
+            }
 
             this.drawer.openDrawer()
                 .then(function() {
-                    console.log('QZ Tray: Drawer opened successfully from toolbar');
+                    if (window.qzConfig.debugMode) {
+                        console.log('QZ Tray: Drawer opened successfully from toolbar');
+                    }
                     self._resetButton(true);
                 })
                 .catch(function(error) {
@@ -169,7 +166,9 @@
                 this.toolbarElement.parentNode.removeChild(this.toolbarElement);
                 this.toolbarElement = null;
                 this.openDrawerButton = null;
-                console.log('QZ Tray: POS toolbar removed');
+                if (window.qzConfig.debugMode) {
+                    console.log('QZ Tray: POS toolbar removed');
+                }
             }
         },
 

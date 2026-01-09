@@ -54,9 +54,6 @@
             this.buttonManager = new QZButtonManager(this.drawer, this.pageDetector);
             this.posToolbar = new QZPosToolbar(this.drawer);
 
-            // Inject POS toolbar early (before full initialization)
-            this.posToolbar.initialize(false);
-
             // Initialize configuration and check certificate status
             return this.config.initialize().then(function(status) {
                 this.initialized = true;
@@ -68,8 +65,8 @@
                 // Initialize button replacement
                 this.buttonManager.initialize();
 
-                // Enable POS toolbar button now that drawer is ready
-                this.posToolbar.initialize(true);
+                // Initialize POS toolbar now that drawer is ready
+                this.posToolbar.initialize();
 
                 return status;
             }.bind(this)).catch(function(error) {
