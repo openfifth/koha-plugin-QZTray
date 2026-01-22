@@ -3,6 +3,10 @@
 [% USE KohaDates %]
 [% PROCESS 'i18n.inc' %]
 [% SET footerjs = 1 %]
+
+[%# Build static base URL for plugin JavaScript files %]
+[% SET static_base = "/api/v1/contrib/qztray/static" %]
+
 [% INCLUDE 'doc-head-open.inc' %]
 <title>[% FILTER collapse %]
     [% t("QZ Tray Integration") | html %] &rsaquo;
@@ -230,6 +234,10 @@
         </div>
     </div>
 </div>
+
+<!-- QZ Tray JavaScript Libraries for printer detection -->
+<script type="text/javascript" src="[% static_base | html %]/js/rsvp-3.1.0.min.js"></script>
+<script type="text/javascript" src="[% static_base | html %]/js/qz-tray.js"></script>
 
 <script type="text/javascript">
 function documentReady(fn) {
