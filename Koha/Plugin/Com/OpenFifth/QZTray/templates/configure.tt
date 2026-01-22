@@ -176,7 +176,13 @@
 
                         [% IF current_register_id %]
                         <div class="alert alert-info mb-3">
-                            <strong>Current Session Register:</strong> You are currently configured to use register ID [% current_register_id | html %]
+                            <strong>Current Session Register:</strong> You can only configure the printer for your current session's register.
+                            Other registers are shown for reference but cannot be modified from this session.
+                        </div>
+                        [% ELSE %]
+                        <div class="alert alert-warning mb-3">
+                            <strong>No Register Selected:</strong> You do not have a cash register selected for this session.
+                            Please select a register in the POS module to configure its printer.
                         </div>
                         [% END %]
 
@@ -200,20 +206,32 @@
 
                             <div class="list-group">
                                 [% FOREACH register IN library_registers %]
-                                <div class="mb-3[% IF register.is_current %] bg-light p-2 rounded[% END %]">
+                                <div class="mb-3[% IF register.is_current %] bg-light p-2 rounded border border-success[% END %]">
                                     <label for="register_printer_[% register.id %]" class="form-label">
                                         [% register.name | html %] ([% register.description | html %])
                                         [% IF register.is_current %]
                                             <span class="badge bg-success ms-2">Current Session Register</span>
+                                        [% ELSE %]
+                                            <span class="badge bg-secondary ms-2">Read Only</span>
                                         [% END %]
                                     </label>
+                                    [% IF register.is_current %]
                                     <input type="hidden" name="register_id" value="[% register.id %]" />
-                                    <select name="register_printer" id="register_printer_[% register.id %]" class="form-select register_printer_select">
+                                    <select name="register_printer" id="register_printer_[% register.id %]" class="form-select register_printer_select" data-saved-printer="[% register_mappings.${register.id} | html %]">
                                         <option value="">Use system default printer</option>
                                         [% IF register_mappings.${register.id} %]
                                             <option value="[% register_mappings.${register.id} | html %]" selected="selected">[% register_mappings.${register.id} | html %]</option>
                                         [% END %]
                                     </select>
+                                    [% ELSE %]
+                                    <select id="register_printer_[% register.id %]" class="form-select" disabled>
+                                        [% IF register_mappings.${register.id} %]
+                                            <option selected="selected">[% register_mappings.${register.id} | html %]</option>
+                                        [% ELSE %]
+                                            <option selected="selected">Using system default printer</option>
+                                        [% END %]
+                                    </select>
+                                    [% END %]
                                 </div>
                                 [% END %]
                             </div>
@@ -339,13 +357,22 @@ documentReady(function() {
     }
 
     function updateSinglePrinterSelect(select, printers) {
+        // Skip disabled (read-only) selects
+        if (select.disabled) {
+            return;
+        }
+
         var currentValue = select.value;
+        var savedPrinter = select.dataset.savedPrinter || '';
 
         // Clear existing options except the default
         var options = select.querySelectorAll('option:not([value=""])');
         options.forEach(function(option) {
             option.remove();
         });
+
+        // Track if we found the saved printer in the new list
+        var foundSavedPrinter = false;
 
         // Add printers to the list
         printers.forEach(function(printer) {
@@ -357,8 +384,22 @@ documentReady(function() {
                 option.selected = true;
             }
 
+            if (printer === savedPrinter) {
+                foundSavedPrinter = true;
+            }
+
             select.appendChild(option);
         });
+
+        // If saved printer wasn't in the list, preserve it with a warning
+        if (savedPrinter && !foundSavedPrinter) {
+            var option = document.createElement('option');
+            option.value = savedPrinter;
+            option.textContent = savedPrinter + ' (not currently available)';
+            option.selected = true;
+            option.className = 'text-warning';
+            select.appendChild(option);
+        }
     }
 });
 </script>

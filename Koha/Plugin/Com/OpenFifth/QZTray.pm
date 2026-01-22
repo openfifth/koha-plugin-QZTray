@@ -242,7 +242,10 @@ sub configure {
             my $mappings_data = {};
             eval { $mappings_data = decode_json($register_mappings); };
 
-            # Process register mappings from form
+            # Get current session's register for validation
+            my $session_register_id = C4::Context->userenv->{'register_id'} || '';
+
+            # Process register mappings from form (only current session's register is allowed)
             my @register_ids = $cgi->multi_param('register_id');
             my @register_printers = $cgi->multi_param('register_printer');
 
@@ -250,8 +253,8 @@ sub configure {
                 my $register_id = $register_ids[$i] || '';
                 my $register_printer = $self->_sanitize_printer_name($register_printers[$i] || '');
 
-                # Validate register_id is numeric
-                if ($register_id =~ /^\d+$/) {
+                # Validate register_id is numeric and matches current session's register
+                if ($register_id =~ /^\d+$/ && $register_id eq $session_register_id) {
                     if ($register_printer) {
                         $mappings_data->{$register_id} = $register_printer;
                     } else {
@@ -271,9 +274,10 @@ sub configure {
             );
 
             # Log register printer configuration changes
-            $self->_log_event('info', 'Register printer mappings updated', {
+            $self->_log_event('info', 'Register printer mapping updated', {
                 action => 'register_printer_config_change',
-                mapping_count => scalar(keys %$mappings_data)
+                register_id => $session_register_id,
+                total_mappings => scalar(keys %$mappings_data)
             });
         }
 
