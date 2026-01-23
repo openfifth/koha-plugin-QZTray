@@ -25,7 +25,7 @@ eval {
     $OPENSSL_AVAILABLE = 0;
 };
 
-our $VERSION         = '1.1.3';
+our $VERSION         = '1.1.4';
 our $MINIMUM_VERSION = "22.05.00.000";
 
 our $metadata = {
@@ -33,7 +33,7 @@ our $metadata = {
     author          => 'OpenFifth',
     description     => 'QZ Tray printing integration for Koha',
     date_authored   => '2025-01-31',
-    date_updated    => '2026-01-22',
+    date_updated    => '2026-01-23',
     minimum_version => $MINIMUM_VERSION,
     maximum_version => undef,
     version         => $VERSION,
