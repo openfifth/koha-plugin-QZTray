@@ -118,7 +118,7 @@ The plugin includes optimized drawer control codes for:
 - **Bixolon SRP-350 series**
 - **Epson TM-T88V**
 - **Metapace T-series**
-- **Citizen CBM1000**
+- **Citizen CBM1000** (all name variations)
 - **Citizen CT-S2000** (all name variations)
 - Other ESC/POS compatible printers (using default codes)
 
@@ -203,4 +203,3 @@ This plugin is released under the GNU General Public License v3.0, consistent wi
 - **v1.0.2**: Added register-specific printer mappings
 - **v1.0.1**: Security and error handling improvements
 - **v1.0.0**: Initial release with basic QZ Tray integration
-
