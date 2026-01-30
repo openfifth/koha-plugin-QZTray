@@ -126,8 +126,9 @@ sub configure {
             $cert_expired = $self->retrieve_data('certificate_expired');
         }
 
-        # Get debug mode setting
+        # Get debug mode and auto-submit settings
         my $debug_mode = $self->retrieve_data('debug_mode') || 0;
+        my $auto_submit_after_drawer = $self->retrieve_data('auto_submit_after_drawer') || 0;
 
         $template->param(
             certificate_file  => $cert_exists ? 'ENCRYPTED' : '',
@@ -142,6 +143,7 @@ sub configure {
             current_library_id => $current_library_id,
             current_register_id => $current_register_id,
             debug_mode => $debug_mode,
+            auto_submit_after_drawer => $auto_submit_after_drawer,
             openssl_available => $openssl_available,
             dependency_warning => $openssl_available ? 0 : 1,
             dependency_message => $openssl_available ? '' : $dependency_check->{message},
@@ -263,13 +265,15 @@ sub configure {
                 }
             }
 
-            # Handle debug mode setting
+            # Handle debug mode and auto-submit settings
             my $debug_mode = $cgi->param('debug_mode') ? 1 : 0;
+            my $auto_submit_after_drawer = $cgi->param('auto_submit_after_drawer') ? 1 : 0;
 
             $self->store_data(
                 {
                     register_printer_mappings => JSON::encode_json($mappings_data),
                     debug_mode => $debug_mode,
+                    auto_submit_after_drawer => $auto_submit_after_drawer,
                 }
             );
 
@@ -416,8 +420,9 @@ sub _generate_qz_js {
     # Get current register ID if available
     my $current_register = C4::Context->userenv->{'register_id'} || '';
 
-    # Get debug mode setting
+    # Get debug mode and auto-submit settings
     my $debug_mode = $self->retrieve_data('debug_mode') || 0;
+    my $auto_submit_after_drawer = $self->retrieve_data('auto_submit_after_drawer') || 0;
 
     # Properly escape JavaScript strings
     my $mappings_json = $self->_escape_js_string(JSON::encode_json($mappings_data));
@@ -439,14 +444,17 @@ window.qzConfig = {
     apiBase: '$api_base',
     registerMappings: JSON.parse('$mappings_json'),
     currentRegister: '$current_register_escaped',
-    debugMode: $debug_mode
+    debugMode: $debug_mode,
+    autoSubmitAfterDrawer: $auto_submit_after_drawer
 };
 </script>
 
 <!-- QZ Tray Integration Modules (loaded in dependency order) -->
+<script type="text/javascript" src="$static_base/js/qz-transaction-lock.js"></script>
 <script type="text/javascript" src="$static_base/js/qz-config.js"></script>
 <script type="text/javascript" src="$static_base/js/qz-messaging.js"></script>
 <script type="text/javascript" src="$static_base/js/qz-auth.js"></script>
+<script type="text/javascript" src="$static_base/js/qz-availability.js"></script>
 <script type="text/javascript" src="$static_base/js/qz-drawer.js"></script>
 <script type="text/javascript" src="$static_base/js/qz-page-detector.js"></script>
 <script type="text/javascript" src="$static_base/js/qz-button-manager.js"></script>

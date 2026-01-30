@@ -90,9 +90,18 @@
 
                     <fieldset>
                         <legend>General Settings</legend>
-                        <input type="checkbox" id="debug_mode" name="debug_mode" value="1" [% IF debug_mode %]checked="checked"[% END %] />
-                        <label for="debug_mode">Enable debug mode</label>
-                        <div class="hint">When enabled, detailed diagnostic messages will be logged to the browser console. Useful for troubleshooting printer selection and drawer operation issues.</div>
+
+                        <div style="margin-bottom: 15px;">
+                            <input type="checkbox" id="debug_mode" name="debug_mode" value="1" [% IF debug_mode %]checked="checked"[% END %] />
+                            <label for="debug_mode">Enable debug mode</label>
+                            <div class="hint">When enabled, detailed diagnostic messages will be logged to the browser console. Useful for troubleshooting printer selection and drawer operation issues.</div>
+                        </div>
+
+                        <div>
+                            <input type="checkbox" id="auto_submit_after_drawer" name="auto_submit_after_drawer" value="1" [% IF auto_submit_after_drawer %]checked="checked"[% END %] />
+                            <label for="auto_submit_after_drawer">Auto-submit after drawer opens</label>
+                            <div class="hint">When enabled, transactions will automatically continue after the cash drawer opens. When disabled, staff must click the confirmation button again after the drawer opens.</div>
+                        </div>
                     </fieldset>
 
                     <fieldset>

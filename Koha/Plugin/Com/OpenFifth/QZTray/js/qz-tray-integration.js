@@ -8,9 +8,11 @@
     'use strict';
 
     // Ensure all required modules are available
-    if (typeof QZConfig === 'undefined' ||
+    if (typeof QZTransactionLock === 'undefined' ||
+        typeof QZConfig === 'undefined' ||
         typeof QZMessaging === 'undefined' ||
         typeof QZAuth === 'undefined' ||
+        typeof QZAvailability === 'undefined' ||
         typeof QZDrawer === 'undefined' ||
         typeof QZPageDetector === 'undefined' ||
         typeof QZButtonManager === 'undefined' ||
@@ -24,6 +26,7 @@
         config: null,
         messaging: null,
         auth: null,
+        availability: null,
         drawer: null,
         pageDetector: null,
         buttonManager: null,
@@ -49,26 +52,51 @@
             this.config = new QZConfig(configData || window.qzConfig || {});
             this.messaging = new QZMessaging(this.config);
             this.auth = new QZAuth(this.config, this.messaging);
-            this.drawer = new QZDrawer(this.config, this.messaging, this.auth);
+            this.availability = new QZAvailability(this.config, this.auth);
+            this.drawer = new QZDrawer(this.config, this.messaging, this.auth, this.availability);
             this.pageDetector = new QZPageDetector();
             this.buttonManager = new QZButtonManager(this.drawer, this.pageDetector);
             this.posToolbar = new QZPosToolbar(this.drawer);
 
             // Initialize configuration and check certificate status
             return this.config.initialize().then(function(status) {
-                this.initialized = true;
+                // Check QZ Tray availability at page load
+                return this.availability.checkAvailability().then(function(available) {
+                    // Always log availability status for user awareness
+                    if (available) {
+                        console.log('QZ Tray: Available - cash drawer operations enabled');
+                    } else {
+                        console.log('QZ Tray: Not available - transactions will proceed without drawer operations');
 
-                if (window.qzConfig.debugMode) {
-                    console.log('QZ Tray: Integration initialized successfully');
-                }
+                        // Show user-visible info message when QZ is unavailable
+                        this.messaging.showWarning('Cash register not detected, transactions can continue but the any attached cash drawer will not open.');
+                    }
 
-                // Initialize button replacement
-                this.buttonManager.initialize();
+                    if (window.qzConfig.debugMode) {
+                        console.log('QZ Tray: Availability check complete:', available ? 'Available' : 'Not available');
+                    }
 
-                // Initialize POS toolbar now that drawer is ready
-                this.posToolbar.initialize();
+                    this.initialized = true;
 
-                return status;
+                    if (window.qzConfig.debugMode) {
+                        console.log('QZ Tray: Integration initialized successfully');
+                    }
+
+                    // Only initialize button replacement and toolbar if QZ is available
+                    if (available) {
+                        // Initialize button replacement
+                        this.buttonManager.initialize();
+
+                        // Initialize POS toolbar now that drawer is ready
+                        this.posToolbar.initialize();
+                    } else {
+                        if (window.qzConfig.debugMode) {
+                            console.log('QZ Tray: Skipping button replacement - QZ not available');
+                        }
+                    }
+
+                    return status;
+                }.bind(this));
             }.bind(this)).catch(function(error) {
                 console.error('QZ Tray: Initialization failed:', error);
                 this.messaging.showError('QZ Tray initialization failed: ' + error.message);
@@ -98,6 +126,7 @@
 
             return {
                 initialized: this.initialized,
+                availability: this.availability.getStatus(),
                 config: {
                     isValid: this.config.isValid(),
                     apiBase: this.config.apiBase,

@@ -6,10 +6,11 @@
 (function(window) {
     'use strict';
 
-    function QZDrawer(config, messaging, auth) {
+    function QZDrawer(config, messaging, auth, availability) {
         this.config = config;
         this.messaging = messaging;
         this.auth = auth;
+        this.availability = availability;
         this.operationInProgress = false;
     }
 
@@ -68,6 +69,18 @@
 
             this.operationInProgress = true;
 
+            // Check QZ availability first for fast fallback
+            var qzAvailable = this.availability.isAvailable();
+
+            if (qzAvailable === false) {
+                // QZ is known to be unavailable, skip connection attempt
+                if (window.qzConfig.debugMode) {
+                    console.log('QZ Tray not available, skipping drawer operation');
+                }
+                this.operationInProgress = false;
+                return Promise.reject(new Error('QZ Tray not available'));
+            }
+
             // Set up authentication
             this.auth.setupSecurity();
 
@@ -94,6 +107,11 @@
                     return self._disconnect();
                 })
                 .catch(function(error) {
+                    // Mark QZ as unavailable if connection fails
+                    if (error.message && error.message.indexOf('Unable to establish connection') !== -1) {
+                        self.availability.markUnavailable();
+                    }
+
                     self.messaging.handleQZError(error, 'qztray_drawer_operation');
                     return self._disconnect().then(function() {
                         throw error; // Re-throw to maintain promise chain

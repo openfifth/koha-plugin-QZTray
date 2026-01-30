@@ -118,6 +118,40 @@
       }
     }
   },
+  "/js/qz-transaction-lock.js": {
+    "get": {
+      "x-mojo-to": "Static#get",
+      "tags": ["pluginStatic", "qztray"],
+      "responses": {
+        "200": {
+          "description": "QZ Tray transaction lock module",
+          "schema": {
+            "type": "file"
+          }
+        },
+        "404": {
+          "description": "File not found"
+        }
+      }
+    }
+  },
+  "/js/qz-availability.js": {
+    "get": {
+      "x-mojo-to": "Static#get",
+      "tags": ["pluginStatic", "qztray"],
+      "responses": {
+        "200": {
+          "description": "QZ Tray availability checker module",
+          "schema": {
+            "type": "file"
+          }
+        },
+        "404": {
+          "description": "File not found"
+        }
+      }
+    }
+  },
   "/js/qz-drawer.js": {
     "get": {
       "x-mojo-to": "Static#get",
