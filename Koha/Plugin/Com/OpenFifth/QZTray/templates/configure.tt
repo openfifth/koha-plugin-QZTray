@@ -253,6 +253,67 @@
                         <p>No cash registers are configured for any library. Please contact your system administrator to set up cash registers before configuring printers.</p>
                     </div>
                     [% END %]
+
+                    [% IF debug_mode && printer_discovery && printer_discovery.size > 0 %]
+                    <fieldset>
+                        <legend>Printer Discovery Debug Data</legend>
+                        <div class="alert alert-info mb-3">
+                            <strong>Debug Mode Active:</strong> This shows all printers discovered on QZ Tray-enabled pages, grouped by branch and register.
+                            Data is collected automatically when pages load. Only visible when debug mode is enabled.
+                        </div>
+
+                        <div class="mb-3">
+                            <button type="submit" name="clear_printer_discovery" value="1" class="btn btn-warning">
+                                <i class="fa fa-trash"></i> Clear Discovery Data
+                            </button>
+                        </div>
+
+                        <div class="row">
+                            [% FOREACH entry IN printer_discovery %]
+                            <div class="col-md-6 mb-3">
+                                <div class="card">
+                                    <div class="card-header bg-light">
+                                        <strong>[% entry.branch_name | html %]</strong>
+                                        <small class="text-muted">([% entry.branch_code | html %])</small>
+                                        [% IF entry.register_name %]
+                                            <br>
+                                            <small>
+                                                Register: [% entry.register_name | html %]
+                                                [% IF entry.register_id %]
+                                                    (ID: [% entry.register_id | html %])
+                                                [% END %]
+                                            </small>
+                                        [% ELSE %]
+                                            <br>
+                                            <small class="text-muted">No register selected</small>
+                                        [% END %]
+                                    </div>
+                                    <div class="card-body">
+                                        <h6>Printers Discovered ([% entry.printer_count %]):</h6>
+                                        <ul class="list-unstyled mb-2">
+                                            [% FOREACH printer IN entry.printers %]
+                                            <li><i class="fa fa-print"></i> [% printer | html %]</li>
+                                            [% END %]
+                                        </ul>
+                                        <div class="text-muted small">
+                                            <div>First seen: [% entry.first_seen_formatted | html %]</div>
+                                            <div>Last seen: [% entry.last_seen_formatted | html %]</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            [% END %]
+                        </div>
+                    </fieldset>
+                    [% ELSIF debug_mode %]
+                    <fieldset>
+                        <legend>Printer Discovery Debug Data</legend>
+                        <div class="alert alert-info">
+                            <strong>Debug Mode Active:</strong> Printers will be automatically discovered when QZ Tray-enabled pages are loaded.
+                            Discovery data will appear here showing which printers are available for each branch/register combination.
+                        </div>
+                    </fieldset>
+                    [% END %]
                 </form>
             </main>
         </div>

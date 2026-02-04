@@ -71,6 +71,13 @@ sub configure {
     # Migrate any existing plain text data to encrypted storage
     $self->migrate_to_encrypted_storage();
 
+    # Handle clear printer discovery data action
+    if ($cgi->param('clear_printer_discovery')) {
+        $self->_clear_printer_discovery();
+        print $cgi->redirect("/cgi-bin/koha/plugins/run.pl?class=" . ref($self) . "&method=configure");
+        return;
+    }
+
     unless ( $cgi->param('save') || $cgi->param('upload_certificates') || $cgi->param('save_printer_config') ) {
         my $template =
           $self->get_template( { file => 'templates/configure.tt' } );
@@ -130,6 +137,21 @@ sub configure {
         my $debug_mode = $self->retrieve_data('debug_mode') || 0;
         my $auto_submit_after_drawer = $self->retrieve_data('auto_submit_after_drawer') || 0;
 
+        # Get printer discovery data if debug mode is enabled
+        my $printer_discovery_display = [];
+        if ($debug_mode) {
+            my $discovery = $self->_get_printer_discovery();
+            # Convert hash to sorted array for template display
+            foreach my $key (sort keys %$discovery) {
+                my $entry = $discovery->{$key};
+                $entry->{key} = $key;
+                $entry->{first_seen_formatted} = scalar(localtime($entry->{first_seen}));
+                $entry->{last_seen_formatted} = scalar(localtime($entry->{last_seen}));
+                $entry->{printer_count} = scalar(@{$entry->{printers} || []});
+                push @$printer_discovery_display, $entry;
+            }
+        }
+
         $template->param(
             certificate_file  => $cert_exists ? 'ENCRYPTED' : '',
             private_key_file  => $key_exists ? 'ENCRYPTED' : '',
@@ -144,6 +166,7 @@ sub configure {
             current_register_id => $current_register_id,
             debug_mode => $debug_mode,
             auto_submit_after_drawer => $auto_submit_after_drawer,
+            printer_discovery => $printer_discovery_display,
             openssl_available => $openssl_available,
             dependency_warning => $openssl_available ? 0 : 1,
             dependency_message => $openssl_available ? '' : $dependency_check->{message},
@@ -935,6 +958,126 @@ sub migrate_to_encrypted_storage {
             }
         }
     }
+}
+
+=head3 _log_printer_discovery
+
+Log discovered printers for a branch+register combination (only when debug mode is enabled)
+
+    $self->_log_printer_discovery({
+        branch_code => 'MAIN',
+        branch_name => 'Main Library',
+        register_id => '1',
+        register_name => 'Register 1',
+        printers => ['Epson TM-T88V', 'HP LaserJet'],
+        page_url => '/pos/pay.pl'
+    });
+
+Stores data as a hash keyed by "branch_code-register_id" with unique printer lists.
+
+=cut
+
+sub _log_printer_discovery {
+    my ($self, $discovery_data) = @_;
+
+    return unless $discovery_data && ref($discovery_data) eq 'HASH';
+
+    # Retrieve existing printer discovery data
+    my $printer_discovery_json = $self->retrieve_data('printer_discovery') || '{}';
+    my $printer_discovery = {};
+    eval { $printer_discovery = decode_json($printer_discovery_json); };
+
+    # If decode failed, start fresh
+    $printer_discovery = {} unless ref($printer_discovery) eq 'HASH';
+
+    # Create key for this branch+register combination
+    my $branch_code = $discovery_data->{branch_code} || 'unknown';
+    my $register_id = $discovery_data->{register_id} || 'none';
+    my $key = "${branch_code}-${register_id}";
+
+    # Get or create entry for this key
+    my $entry = $printer_discovery->{$key} || {
+        branch_code => $branch_code,
+        branch_name => $discovery_data->{branch_name} || $branch_code,
+        register_id => $register_id ne 'none' ? $register_id : '',
+        register_name => $discovery_data->{register_name} || '',
+        printers => [],
+        first_seen => time(),
+        last_seen => time()
+    };
+
+    # Update metadata
+    $entry->{branch_name} = $discovery_data->{branch_name} if $discovery_data->{branch_name};
+    $entry->{register_name} = $discovery_data->{register_name} if $discovery_data->{register_name};
+    $entry->{last_seen} = time();
+
+    # Merge new printers with existing ones (keep unique)
+    my %seen_printers = map { $_ => 1 } @{$entry->{printers} || []};
+    foreach my $printer (@{$discovery_data->{printers} || []}) {
+        next if $seen_printers{$printer};
+        push @{$entry->{printers}}, $printer;
+        $seen_printers{$printer} = 1;
+    }
+
+    # Store updated entry
+    $printer_discovery->{$key} = $entry;
+
+    # Store updated discovery data
+    $self->store_data({
+        printer_discovery => JSON::encode_json($printer_discovery)
+    });
+
+    # Also log to Koha log for permanent record
+    $self->_log_event('debug', 'Printer discovery logged', {
+        key => $key,
+        branch_code => $branch_code,
+        register_id => $register_id,
+        printer_count => scalar(@{$entry->{printers}}),
+        action => 'printer_discovery_debug'
+    });
+}
+
+=head3 _get_printer_discovery
+
+Retrieve printer discovery data for display in configuration UI
+
+    my $discovery = $self->_get_printer_discovery();
+
+Returns hash reference of discovery data keyed by "branch_code-register_id".
+
+=cut
+
+sub _get_printer_discovery {
+    my ($self) = @_;
+
+    my $printer_discovery_json = $self->retrieve_data('printer_discovery') || '{}';
+    my $printer_discovery = {};
+    eval { $printer_discovery = decode_json($printer_discovery_json); };
+
+    # If decode failed, return empty hash
+    $printer_discovery = {} unless ref($printer_discovery) eq 'HASH';
+
+    return $printer_discovery;
+}
+
+=head3 _clear_printer_discovery
+
+Clear all printer discovery data
+
+    $self->_clear_printer_discovery();
+
+=cut
+
+sub _clear_printer_discovery {
+    my ($self) = @_;
+
+    $self->store_data({
+        printer_discovery => '{}'
+    });
+
+    $self->_log_event('info', 'Printer discovery data cleared', {
+        action => 'clear_printer_discovery'
+    });
 }
 
 

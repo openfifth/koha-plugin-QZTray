@@ -89,6 +89,11 @@
 
                         // Initialize POS toolbar now that drawer is ready
                         this.posToolbar.initialize();
+
+                        // Discover and log printers if debug mode is enabled
+                        if (window.qzConfig.debugMode) {
+                            this.discoverPrinters();
+                        }
                     } else {
                         if (window.qzConfig.debugMode) {
                             console.log('QZ Tray: Skipping button replacement - QZ not available');
@@ -155,6 +160,82 @@
             if (window.qzConfig.debugMode) {
                 console.log('QZ Tray: Integration reset');
             }
+        },
+
+        /**
+         * Discover all available printers and log to server (debug mode only)
+         */
+        discoverPrinters: function() {
+            if (!window.qzConfig.debugMode) {
+                return;
+            }
+
+            if (window.qzConfig.debugMode) {
+                console.log('QZ Tray: Starting printer discovery for debugging');
+            }
+
+            var self = this;
+
+            // Set up authentication
+            this.auth.setupSecurity();
+
+            qz.websocket.connect().then(function() {
+                if (window.qzConfig.debugMode) {
+                    console.log('QZ Tray: Connected for printer discovery');
+                }
+                return qz.printers.find();
+            }).then(function(printers) {
+                if (window.qzConfig.debugMode) {
+                    console.log('QZ Tray: Discovered printers:', printers);
+                }
+
+                // Send discovered printers to server for logging
+                self._logDiscoveredPrinters(printers);
+
+                return qz.websocket.disconnect();
+            }).catch(function(error) {
+                if (window.qzConfig.debugMode) {
+                    console.log('QZ Tray: Printer discovery failed:', error);
+                }
+                // Try to disconnect even if discovery failed
+                if (qz.websocket && qz.websocket.disconnect) {
+                    qz.websocket.disconnect().catch(function() {});
+                }
+            });
+        },
+
+        /**
+         * Log discovered printers to server (internal method)
+         */
+        _logDiscoveredPrinters: function(printers) {
+            if (!window.qzConfig.debugMode || !printers || printers.length === 0) {
+                return;
+            }
+
+            var logUrl = this.config.getApiUrl('/log-printer');
+            var registerid = this.config.getCurrentRegister();
+
+            fetch(logUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    printers: printers,
+                    register_id: registerid || '',
+                    page_url: window.location.pathname || 'unknown'
+                })
+            }).then(function(response) {
+                if (window.qzConfig.debugMode && response.ok) {
+                    console.log('QZ Tray: Printer discovery logged successfully');
+                }
+            }).catch(function(error) {
+                if (window.qzConfig.debugMode) {
+                    console.log('QZ Tray: Failed to log printer discovery:', error);
+                }
+            });
         }
     };
 

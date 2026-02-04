@@ -236,5 +236,97 @@
         }
       }
     }
+  },
+  "/log-printer": {
+    "post": {
+      "x-mojo-to": "Com::OpenFifth::QZTray::Controllers::Auth#logPrinter",
+      "operationId": "logPrinter",
+      "tags": [
+        "qztray-logging"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "consumes": [
+        "application/json"
+      ],
+      "parameters": [
+        {
+          "name": "body",
+          "in": "body",
+          "required": true,
+          "description": "Printer discovery information to log",
+          "schema": {
+            "type": "object",
+            "required": [
+              "printers"
+            ],
+            "properties": {
+              "printers": {
+                "type": "array",
+                "description": "List of printer names discovered",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "register_id": {
+                "type": "string",
+                "description": "Register ID from session"
+              },
+              "page_url": {
+                "type": "string",
+                "description": "URL where printers were discovered"
+              }
+            }
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Printer usage logged successfully",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "description": "Success status"
+              }
+            }
+          }
+        },
+        "400": {
+          "description": "Invalid request data",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string",
+                "description": "Error message"
+              },
+              "error_code": {
+                "type": "string",
+                "description": "Machine-readable error code"
+              }
+            }
+          }
+        },
+        "500": {
+          "description": "Internal server error",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string",
+                "description": "Error message"
+              },
+              "error_code": {
+                "type": "string",
+                "description": "Machine-readable error code"
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }

@@ -168,4 +168,101 @@ sub logError {
     };
 }
 
+sub logPrinter {
+    my $c = shift->openapi->valid_input or return;
+
+    try {
+        my $plugin = Koha::Plugin::Com::OpenFifth::QZTray->new();
+
+        # Check if debug mode is enabled
+        my $debug_mode = $plugin->retrieve_data('debug_mode') || 0;
+        unless ($debug_mode) {
+            # Debug mode is disabled, silently succeed without logging
+            return $c->render(
+                json => {
+                    status => 'ignored'
+                },
+                status => 200
+            );
+        }
+
+        my $body = $c->validation->param('body');
+
+        # Extract printer discovery details
+        my $printers     = $body->{printers} || [];
+        my $register_id  = $body->{register_id} || '';
+        my $page_url     = $body->{page_url} || 'unknown_url';
+
+        # Validate that printers is an array
+        unless (ref($printers) eq 'ARRAY') {
+            return $c->render(
+                json => {
+                    error => 'printers field must be an array',
+                    error_code => 'INVALID_PRINTERS_FIELD'
+                },
+                status => 400
+            );
+        }
+
+        # Get branch and register information from session
+        my $userenv = C4::Context->userenv;
+        my $branch_code = $userenv ? $userenv->{'branch'} : 'unknown';
+        my $session_register_id = $userenv ? ($userenv->{'register_id'} || '') : '';
+
+        # Use session register_id if not provided in request
+        $register_id = $session_register_id if !$register_id;
+
+        # Get register and branch names for display
+        my $register_name = '';
+        my $branch_name = '';
+
+        if ($register_id) {
+            my $register = Koha::Cash::Registers->find($register_id);
+            if ($register) {
+                $register_name = $register->name;
+                my $library = $register->library;
+                $branch_name = $library ? $library->branchname : $branch_code;
+            }
+        }
+
+        # If no register but we have branch code, get branch name
+        if (!$branch_name && $branch_code) {
+            my $library = Koha::Libraries->find($branch_code);
+            $branch_name = $library ? $library->branchname : $branch_code;
+        }
+
+        # Store printer discovery data
+        $plugin->_log_printer_discovery({
+            branch_code => $branch_code,
+            branch_name => $branch_name,
+            register_id => $register_id,
+            register_name => $register_name,
+            printers => $printers,
+            page_url => $page_url,
+        });
+
+        return $c->render(
+            json => {
+                status => 'logged'
+            },
+            status => 200
+        );
+    }
+    catch {
+        my $plugin = Koha::Plugin::Com::OpenFifth::QZTray->new();
+        $plugin->_log_event('error', 'Error logging printer discovery', {
+            error => "$_",
+            action => 'logPrinter',
+            endpoint => '/log-printer'
+        });
+        return $c->render(
+            json => {
+                error => 'Failed to log printer discovery',
+                error_code => 'PRINTER_LOGGING_FAILED'
+            },
+            status => 500
+        );
+    };
+}
+
 1;
