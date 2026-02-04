@@ -3,6 +3,15 @@
     "get": {
       "x-mojo-to": "Static#get",
       "tags": ["pluginStatic", "qztray"],
+      "parameters": [
+        {
+          "name": "v",
+          "in": "query",
+          "required": false,
+          "description": "Version parameter for cache-busting",
+          "type": "string"
+        }
+      ],
       "responses": {
         "200": {
           "description": "JavaScript file found",
@@ -20,6 +29,15 @@
     "get": {
       "x-mojo-to": "Static#get",
       "tags": ["pluginStatic", "qztray"],
+      "parameters": [
+        {
+          "name": "v",
+          "in": "query",
+          "required": false,
+          "description": "Version parameter for cache-busting",
+          "type": "string"
+        }
+      ],
       "responses": {
         "200": {
           "description": "JavaScript file found",
@@ -37,6 +55,15 @@
     "get": {
       "x-mojo-to": "Static#get",
       "tags": ["pluginStatic", "qztray"],
+      "parameters": [
+        {
+          "name": "v",
+          "in": "query",
+          "required": false,
+          "description": "Version parameter for cache-busting",
+          "type": "string"
+        }
+      ],
       "responses": {
         "200": {
           "description": "JavaScript file found",
@@ -54,6 +81,15 @@
     "get": {
       "x-mojo-to": "Static#get",
       "tags": ["pluginStatic", "qztray"],
+      "parameters": [
+        {
+          "name": "v",
+          "in": "query",
+          "required": false,
+          "description": "Version parameter for cache-busting",
+          "type": "string"
+        }
+      ],
       "responses": {
         "200": {
           "description": "JavaScript file found",
@@ -71,6 +107,15 @@
     "get": {
       "x-mojo-to": "Static#get",
       "tags": ["pluginStatic", "qztray"],
+      "parameters": [
+        {
+          "name": "v",
+          "in": "query",
+          "required": false,
+          "description": "Version parameter for cache-busting",
+          "type": "string"
+        }
+      ],
       "responses": {
         "200": {
           "description": "QZ Tray configuration module",
@@ -88,6 +133,15 @@
     "get": {
       "x-mojo-to": "Static#get",
       "tags": ["pluginStatic", "qztray"],
+      "parameters": [
+        {
+          "name": "v",
+          "in": "query",
+          "required": false,
+          "description": "Version parameter for cache-busting",
+          "type": "string"
+        }
+      ],
       "responses": {
         "200": {
           "description": "QZ Tray messaging system module",
@@ -105,6 +159,15 @@
     "get": {
       "x-mojo-to": "Static#get",
       "tags": ["pluginStatic", "qztray"],
+      "parameters": [
+        {
+          "name": "v",
+          "in": "query",
+          "required": false,
+          "description": "Version parameter for cache-busting",
+          "type": "string"
+        }
+      ],
       "responses": {
         "200": {
           "description": "QZ Tray authentication module",
@@ -122,6 +185,15 @@
     "get": {
       "x-mojo-to": "Static#get",
       "tags": ["pluginStatic", "qztray"],
+      "parameters": [
+        {
+          "name": "v",
+          "in": "query",
+          "required": false,
+          "description": "Version parameter for cache-busting",
+          "type": "string"
+        }
+      ],
       "responses": {
         "200": {
           "description": "QZ Tray transaction lock module",
@@ -139,6 +211,15 @@
     "get": {
       "x-mojo-to": "Static#get",
       "tags": ["pluginStatic", "qztray"],
+      "parameters": [
+        {
+          "name": "v",
+          "in": "query",
+          "required": false,
+          "description": "Version parameter for cache-busting",
+          "type": "string"
+        }
+      ],
       "responses": {
         "200": {
           "description": "QZ Tray availability checker module",
@@ -156,6 +237,15 @@
     "get": {
       "x-mojo-to": "Static#get",
       "tags": ["pluginStatic", "qztray"],
+      "parameters": [
+        {
+          "name": "v",
+          "in": "query",
+          "required": false,
+          "description": "Version parameter for cache-busting",
+          "type": "string"
+        }
+      ],
       "responses": {
         "200": {
           "description": "QZ Tray cash drawer operations module",
@@ -173,6 +263,15 @@
     "get": {
       "x-mojo-to": "Static#get",
       "tags": ["pluginStatic", "qztray"],
+      "parameters": [
+        {
+          "name": "v",
+          "in": "query",
+          "required": false,
+          "description": "Version parameter for cache-busting",
+          "type": "string"
+        }
+      ],
       "responses": {
         "200": {
           "description": "QZ Tray page detection module",
@@ -190,6 +289,15 @@
     "get": {
       "x-mojo-to": "Static#get",
       "tags": ["pluginStatic", "qztray"],
+      "parameters": [
+        {
+          "name": "v",
+          "in": "query",
+          "required": false,
+          "description": "Version parameter for cache-busting",
+          "type": "string"
+        }
+      ],
       "responses": {
         "200": {
           "description": "QZ Tray button management module",
@@ -207,6 +315,15 @@
     "get": {
       "x-mojo-to": "Static#get",
       "tags": ["pluginStatic", "qztray"],
+      "parameters": [
+        {
+          "name": "v",
+          "in": "query",
+          "required": false,
+          "description": "Version parameter for cache-busting",
+          "type": "string"
+        }
+      ],
       "responses": {
         "200": {
           "description": "QZ Tray POS toolbar module",
@@ -224,6 +341,15 @@
     "get": {
       "x-mojo-to": "Static#get",
       "tags": ["pluginStatic", "qztray"],
+      "parameters": [
+        {
+          "name": "v",
+          "in": "query",
+          "required": false,
+          "description": "Version parameter for cache-busting",
+          "type": "string"
+        }
+      ],
       "responses": {
         "200": {
           "description": "QZ Tray main integration module",
