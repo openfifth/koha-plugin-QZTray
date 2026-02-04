@@ -431,12 +431,18 @@ sub _generate_qz_js {
     # API routes are served at /api/v1/contrib/{namespace}{route}
     my $api_base = "/api/v1/contrib/" . $self->api_namespace;
 
+    # Cache-busting: format version to match Koha's Apache rewrite rule pattern
+    # Converts X.Y.Z to _XX.YYYZZZ format (e.g., 1.1.5 -> _01.0010005)
+    # This works with Apache rule: RewriteRule ^(.*)_[0-9]{2}\.[0-9]{7}\.(js|css)$ $1.$2 [L]
+    my ($major, $minor, $patch) = split /\./, $VERSION;
+    my $cache_version = sprintf("_%02d.%03d%04d", $major || 0, $minor || 0, $patch || 0);
+
     return qq{
 <!-- QZ Tray JavaScript Libraries (loaded as external files) -->
-<script type="text/javascript" src="$static_base/js/rsvp-3.1.0.min.js"></script>
-<script type="text/javascript" src="$static_base/js/sha-256.min.js"></script>
-<script type="text/javascript" src="$static_base/js/jsrsasign-all-min.js"></script>
-<script type="text/javascript" src="$static_base/js/qz-tray.js"></script>
+<script type="text/javascript" src="$static_base/js/rsvp-3.1.0.min$cache_version.js"></script>
+<script type="text/javascript" src="$static_base/js/sha-256.min$cache_version.js"></script>
+<script type="text/javascript" src="$static_base/js/jsrsasign-all-min$cache_version.js"></script>
+<script type="text/javascript" src="$static_base/js/qz-tray$cache_version.js"></script>
 
 <script type="text/javascript">
 // QZ Tray Configuration
@@ -450,16 +456,16 @@ window.qzConfig = {
 </script>
 
 <!-- QZ Tray Integration Modules (loaded in dependency order) -->
-<script type="text/javascript" src="$static_base/js/qz-transaction-lock.js"></script>
-<script type="text/javascript" src="$static_base/js/qz-config.js"></script>
-<script type="text/javascript" src="$static_base/js/qz-messaging.js"></script>
-<script type="text/javascript" src="$static_base/js/qz-auth.js"></script>
-<script type="text/javascript" src="$static_base/js/qz-availability.js"></script>
-<script type="text/javascript" src="$static_base/js/qz-drawer.js"></script>
-<script type="text/javascript" src="$static_base/js/qz-page-detector.js"></script>
-<script type="text/javascript" src="$static_base/js/qz-button-manager.js"></script>
-<script type="text/javascript" src="$static_base/js/qz-pos-toolbar.js"></script>
-<script type="text/javascript" src="$static_base/js/qz-tray-integration.js"></script>
+<script type="text/javascript" src="$static_base/js/qz-transaction-lock$cache_version.js"></script>
+<script type="text/javascript" src="$static_base/js/qz-config$cache_version.js"></script>
+<script type="text/javascript" src="$static_base/js/qz-messaging$cache_version.js"></script>
+<script type="text/javascript" src="$static_base/js/qz-auth$cache_version.js"></script>
+<script type="text/javascript" src="$static_base/js/qz-availability$cache_version.js"></script>
+<script type="text/javascript" src="$static_base/js/qz-drawer$cache_version.js"></script>
+<script type="text/javascript" src="$static_base/js/qz-page-detector$cache_version.js"></script>
+<script type="text/javascript" src="$static_base/js/qz-button-manager$cache_version.js"></script>
+<script type="text/javascript" src="$static_base/js/qz-pos-toolbar$cache_version.js"></script>
+<script type="text/javascript" src="$static_base/js/qz-tray-integration$cache_version.js"></script>
     };
 }
 
