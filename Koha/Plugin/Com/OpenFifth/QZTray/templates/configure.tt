@@ -229,13 +229,15 @@
                                         [% END %]
                                     </select>
                                     [% ELSE %]
-                                    <select name="register_printer" id="register_printer_[% register.id %]" class="form-select" disabled data-branch="[% library_code | html %]" data-register="[% register.id %]">
+                                    <select name="register_printer_disabled" id="register_printer_[% register.id %]" class="form-select" disabled data-branch="[% library_code | html %]" data-register="[% register.id %]">
                                         [% IF register_mappings.${register.id} %]
                                             <option value="[% register_mappings.${register.id} | html %]" selected="selected">[% register_mappings.${register.id} | html %] (not in discovery data)</option>
                                         [% ELSE %]
                                             <option value="">No supported printers discovered</option>
                                         [% END %]
                                     </select>
+                                    [%# Hidden input preserves value for disabled selects to prevent array misalignment %]
+                                    <input type="hidden" name="register_printer" value="[% register_mappings.${register.id} | html %]" />
                                     <div class="form-text text-warning">
                                         <i class="fa fa-info-circle"></i>
                                         [% IF register.has_unsupported %]
