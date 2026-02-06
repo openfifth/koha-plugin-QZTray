@@ -7,6 +7,29 @@
 [%# Build static base URL for plugin JavaScript files %]
 [% SET static_base = "/api/v1/contrib/qztray/static" %]
 
+[%# Helper macro to check if a printer is supported %]
+[% MACRO is_supported_printer(printer_name) BLOCK %]
+    [% supported_patterns = [
+        'Bixolon SRP-350',
+        'Epson TM-T88V',
+        'Metapace T',
+        'Citizen CBM1000',
+        'Citizen CBM1000 TYPE II',
+        'Citizen CT-S2000',
+        'CT-S2000',
+        'Citizen CTS2000',
+        'CTS2000'
+    ] %]
+    [% is_supported = 0 %]
+    [% FOREACH pattern IN supported_patterns %]
+        [% IF printer_name.search(pattern) %]
+            [% is_supported = 1 %]
+            [% LAST %]
+        [% END %]
+    [% END %]
+    [% is_supported %]
+[% END %]
+
 [% INCLUDE 'doc-head-open.inc' %]
 <title>[% FILTER collapse %]
     [% t("QZ Tray Integration") | html %] &rsaquo;
@@ -92,9 +115,15 @@
                         <legend>General Settings</legend>
 
                         <div style="margin-bottom: 15px;">
+                            <input type="checkbox" id="discovery_mode" name="discovery_mode" value="1" [% IF discovery_mode %]checked="checked"[% END %] />
+                            <label for="discovery_mode">Enable discovery mode</label>
+                            <div class="hint">When enabled, available printers will be automatically discovered and stored for each branch/register combination. This data is used to populate the printer selection dropdowns below. Discovery runs in the background when staff load payment pages.</div>
+                        </div>
+
+                        <div style="margin-bottom: 15px;">
                             <input type="checkbox" id="debug_mode" name="debug_mode" value="1" [% IF debug_mode %]checked="checked"[% END %] />
                             <label for="debug_mode">Enable debug mode</label>
-                            <div class="hint">When enabled, detailed diagnostic messages will be logged to the browser console. Useful for troubleshooting printer selection and drawer operation issues.</div>
+                            <div class="hint">When enabled, detailed diagnostic messages will be logged to the browser console and the full printer discovery data will be displayed at the bottom of this page. Debug mode also automatically enables discovery mode. Useful for troubleshooting printer selection and drawer operation issues.</div>
                         </div>
 
                         <div>
@@ -181,23 +210,12 @@
                     [% IF registers_by_library && registers_by_library.size > 0 %]
                     <fieldset>
                         <legend>Printer Settings</legend>
-                        <div class="form-text mb-3">Configure printers for each cash register. If no printer is specified, the system default printer will be used.</div>
-
-                        [% IF current_register_id %]
-                        <div class="alert alert-info mb-3">
-                            <strong>Current Session Register:</strong> You can only configure the printer for your current session's register.
-                            Other registers are shown for reference but cannot be modified from this session.
-                        </div>
-                        [% ELSE %]
-                        <div class="alert alert-warning mb-3">
-                            <strong>No Register Selected:</strong> You do not have a cash register selected for this session.
-                            Please select a register in the POS module to configure its printer.
-                        </div>
-                        [% END %]
-
-                        <div class="mb-3">
-                            <button type="button" class="btn btn-secondary" id="refresh_printers">Refresh Printer List</button>
-                            <div id="printer_status" class="form-text d-inline-block ms-2"></div>
+                        <div class="form-text mb-3">
+                            Configure printers for each cash register. Printer lists are populated from discovery mode data for each branch/register combination.
+                            If no printer is specified, the system default printer will be used.
+                            [% IF !discovery_mode && !debug_mode %]
+                            <br><strong>Note:</strong> Enable Discovery Mode above to start collecting printer data for each register.
+                            [% END %]
                         </div>
 
                         [% FOREACH library_code IN registers_by_library.keys.sort %]
@@ -215,31 +233,76 @@
 
                             <div class="list-group">
                                 [% FOREACH register IN library_registers %]
+                                [%# Build discovery key for this register %]
+                                [% discovery_key = library_code _ '-' _ register.id %]
+                                [% discovered_printers = printer_discovery_data.$discovery_key.printers || [] %]
+                                [% has_discovered_printers = discovered_printers.size > 0 %]
+
                                 <div class="mb-3[% IF register.is_current %] bg-light p-2 rounded border border-success[% END %]">
                                     <label for="register_printer_[% register.id %]" class="form-label">
                                         [% register.name | html %] ([% register.description | html %])
                                         [% IF register.is_current %]
                                             <span class="badge bg-success ms-2">Current Session Register</span>
-                                        [% ELSE %]
-                                            <span class="badge bg-secondary ms-2">Read Only</span>
                                         [% END %]
                                     </label>
-                                    [% IF register.is_current %]
+
                                     <input type="hidden" name="register_id" value="[% register.id %]" />
-                                    <select name="register_printer" id="register_printer_[% register.id %]" class="form-select register_printer_select" data-saved-printer="[% register_mappings.${register.id} | html %]">
+
+                                    [%# Filter to only show supported printers %]
+                                    [% supported_printers_list = [] %]
+                                    [% FOREACH printer IN discovered_printers %]
+                                        [% IF is_supported_printer(printer) %]
+                                            [% supported_printers_list.push(printer) %]
+                                        [% END %]
+                                    [% END %]
+
+                                    [% IF supported_printers_list.size > 0 %]
+                                    <select name="register_printer" id="register_printer_[% register.id %]" class="form-select" data-branch="[% library_code | html %]" data-register="[% register.id %]">
                                         <option value="">Use system default printer</option>
-                                        [% IF register_mappings.${register.id} %]
-                                            <option value="[% register_mappings.${register.id} | html %]" selected="selected">[% register_mappings.${register.id} | html %]</option>
+                                        [% FOREACH printer IN supported_printers_list %]
+                                            [% selected = (register_mappings.${register.id} == printer) ? 'selected="selected"' : '' %]
+                                            <option value="[% printer | html %]" [% selected %]>[% printer | html %]</option>
                                         [% END %]
                                     </select>
                                     [% ELSE %]
-                                    <select id="register_printer_[% register.id %]" class="form-select" disabled>
+                                    <select name="register_printer" id="register_printer_[% register.id %]" class="form-select" disabled data-branch="[% library_code | html %]" data-register="[% register.id %]">
                                         [% IF register_mappings.${register.id} %]
-                                            <option selected="selected">[% register_mappings.${register.id} | html %]</option>
+                                            <option value="[% register_mappings.${register.id} | html %]" selected="selected">[% register_mappings.${register.id} | html %] (not in discovery data)</option>
                                         [% ELSE %]
-                                            <option selected="selected">Using system default printer</option>
+                                            <option value="">No supported printers discovered</option>
                                         [% END %]
                                     </select>
+                                    <div class="form-text text-warning">
+                                        <i class="fa fa-info-circle"></i>
+                                        [% IF discovered_printers.size > 0 %]
+                                        Printers were discovered but none are currently supported. Contact OpenFifth to add support for these models.
+                                        [% ELSE %]
+                                        No printers have been discovered for this register yet.
+                                        [% IF discovery_mode || debug_mode %]
+                                        Visit a payment page with this register selected to discover available printers.
+                                        [% ELSE %]
+                                        Enable Discovery Mode to start collecting printer data.
+                                        [% END %]
+                                        [% END %]
+                                    </div>
+                                    [% END %]
+                                    [%# This ELSE handles when no printers were discovered at all %]
+                                    [% ELSE %]
+                                    <select name="register_printer" id="register_printer_[% register.id %]" class="form-select" disabled data-branch="[% library_code | html %]" data-register="[% register.id %]">
+                                        [% IF register_mappings.${register.id} %]
+                                            <option value="[% register_mappings.${register.id} | html %]" selected="selected">[% register_mappings.${register.id} | html %] (not in discovery data)</option>
+                                        [% ELSE %]
+                                            <option value="">No printers discovered</option>
+                                        [% END %]
+                                    </select>
+                                    <div class="form-text text-warning">
+                                        <i class="fa fa-info-circle"></i> No printers have been discovered for this register yet.
+                                        [% IF discovery_mode || debug_mode %]
+                                        Visit a payment page with this register selected to discover available printers.
+                                        [% ELSE %]
+                                        Enable Discovery Mode to start collecting printer data.
+                                        [% END %]
+                                    </div>
                                     [% END %]
                                 </div>
                                 [% END %]
@@ -290,11 +353,32 @@
                                     </div>
                                     <div class="card-body">
                                         <h6>Printers Discovered ([% entry.printer_count %]):</h6>
-                                        <ul class="list-unstyled mb-2">
-                                            [% FOREACH printer IN entry.printers %]
-                                            <li><i class="fa fa-print"></i> [% printer | html %]</li>
-                                            [% END %]
-                                        </ul>
+
+                                        [% IF entry.supported_printers.size > 0 %]
+                                        <div class="mb-2">
+                                            <strong class="text-success">Supported Printers:</strong>
+                                            <ul class="list-unstyled mb-1">
+                                                [% FOREACH printer IN entry.supported_printers %]
+                                                <li class="text-success"><i class="fa fa-check-circle"></i> [% printer | html %]</li>
+                                                [% END %]
+                                            </ul>
+                                        </div>
+                                        [% END %]
+
+                                        [% IF entry.unsupported_printers.size > 0 %]
+                                        <div class="mb-2">
+                                            <strong class="text-danger">Unsupported Printers:</strong>
+                                            <ul class="list-unstyled mb-1">
+                                                [% FOREACH printer IN entry.unsupported_printers %]
+                                                <li class="text-danger"><i class="fa fa-times-circle"></i> [% printer | html %]</li>
+                                                [% END %]
+                                            </ul>
+                                            <div class="alert alert-warning mt-2 mb-2">
+                                                <small><i class="fa fa-info-circle"></i> Unsupported printers will not have drawer opening functionality. Contact OpenFifth to add support for these models.</small>
+                                            </div>
+                                        </div>
+                                        [% END %]
+
                                         <div class="text-muted small">
                                             <div>First seen: [% entry.first_seen_formatted | html %]</div>
                                             <div>Last seen: [% entry.last_seen_formatted | html %]</div>

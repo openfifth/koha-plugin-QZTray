@@ -174,10 +174,11 @@ sub logPrinter {
     try {
         my $plugin = Koha::Plugin::Com::OpenFifth::QZTray->new();
 
-        # Check if debug mode is enabled
+        # Check if discovery mode or debug mode is enabled
+        my $discovery_mode = $plugin->retrieve_data('discovery_mode') || 0;
         my $debug_mode = $plugin->retrieve_data('debug_mode') || 0;
-        unless ($debug_mode) {
-            # Debug mode is disabled, silently succeed without logging
+        unless ($discovery_mode || $debug_mode) {
+            # Neither discovery nor debug mode is enabled, silently succeed without logging
             return $c->render(
                 json => {
                     status => 'ignored'

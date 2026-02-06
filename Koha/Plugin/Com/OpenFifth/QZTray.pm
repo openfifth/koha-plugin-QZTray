@@ -133,14 +133,17 @@ sub configure {
             $cert_expired = $self->retrieve_data('certificate_expired');
         }
 
-        # Get debug mode and auto-submit settings
+        # Get debug mode, discovery mode, and auto-submit settings
         my $debug_mode = $self->retrieve_data('debug_mode') || 0;
+        my $discovery_mode = $self->retrieve_data('discovery_mode') || 0;
         my $auto_submit_after_drawer = $self->retrieve_data('auto_submit_after_drawer') || 0;
 
-        # Get printer discovery data if debug mode is enabled
+        # Get printer discovery data (always loaded for printer settings)
+        my $discovery = $self->_get_printer_discovery();
+
+        # Prepare discovery display for debug mode
         my $printer_discovery_display = [];
         if ($debug_mode) {
-            my $discovery = $self->_get_printer_discovery();
             # Convert hash to sorted array for template display
             foreach my $key (sort keys %$discovery) {
                 my $entry = $discovery->{$key};
@@ -148,6 +151,20 @@ sub configure {
                 $entry->{first_seen_formatted} = scalar(localtime($entry->{first_seen}));
                 $entry->{last_seen_formatted} = scalar(localtime($entry->{last_seen}));
                 $entry->{printer_count} = scalar(@{$entry->{printers} || []});
+
+                # Categorize printers as supported or unsupported
+                my @supported_printers;
+                my @unsupported_printers;
+                foreach my $printer (@{$entry->{printers} || []}) {
+                    if ($self->_is_supported_printer($printer)) {
+                        push @supported_printers, $printer;
+                    } else {
+                        push @unsupported_printers, $printer;
+                    }
+                }
+                $entry->{supported_printers} = \@supported_printers;
+                $entry->{unsupported_printers} = \@unsupported_printers;
+
                 push @$printer_discovery_display, $entry;
             }
         }
@@ -165,8 +182,10 @@ sub configure {
             current_library_id => $current_library_id,
             current_register_id => $current_register_id,
             debug_mode => $debug_mode,
+            discovery_mode => $discovery_mode,
             auto_submit_after_drawer => $auto_submit_after_drawer,
             printer_discovery => $printer_discovery_display,
+            printer_discovery_data => $discovery,
             openssl_available => $openssl_available,
             dependency_warning => $openssl_available ? 0 : 1,
             dependency_message => $openssl_available ? '' : $dependency_check->{message},
@@ -267,10 +286,7 @@ sub configure {
             my $mappings_data = {};
             eval { $mappings_data = decode_json($register_mappings); };
 
-            # Get current session's register for validation
-            my $session_register_id = C4::Context->userenv->{'register_id'} || '';
-
-            # Process register mappings from form (only current session's register is allowed)
+            # Process register mappings from form (all registers allowed)
             my @register_ids = $cgi->multi_param('register_id');
             my @register_printers = $cgi->multi_param('register_printer');
 
@@ -278,8 +294,8 @@ sub configure {
                 my $register_id = $register_ids[$i] || '';
                 my $register_printer = $self->_sanitize_printer_name($register_printers[$i] || '');
 
-                # Validate register_id is numeric and matches current session's register
-                if ($register_id =~ /^\d+$/ && $register_id eq $session_register_id) {
+                # Validate register_id is numeric
+                if ($register_id =~ /^\d+$/) {
                     if ($register_printer) {
                         $mappings_data->{$register_id} = $register_printer;
                     } else {
@@ -288,14 +304,16 @@ sub configure {
                 }
             }
 
-            # Handle debug mode and auto-submit settings
+            # Handle debug mode, discovery mode, and auto-submit settings
             my $debug_mode = $cgi->param('debug_mode') ? 1 : 0;
+            my $discovery_mode = $cgi->param('discovery_mode') ? 1 : 0;
             my $auto_submit_after_drawer = $cgi->param('auto_submit_after_drawer') ? 1 : 0;
 
             $self->store_data(
                 {
                     register_printer_mappings => JSON::encode_json($mappings_data),
                     debug_mode => $debug_mode,
+                    discovery_mode => $discovery_mode,
                     auto_submit_after_drawer => $auto_submit_after_drawer,
                 }
             );
@@ -303,7 +321,6 @@ sub configure {
             # Log register printer configuration changes
             $self->_log_event('info', 'Register printer mapping updated', {
                 action => 'register_printer_config_change',
-                register_id => $session_register_id,
                 total_mappings => scalar(keys %$mappings_data)
             });
         }
@@ -443,8 +460,9 @@ sub _generate_qz_js {
     # Get current register ID if available
     my $current_register = C4::Context->userenv->{'register_id'} || '';
 
-    # Get debug mode and auto-submit settings
+    # Get debug mode, discovery mode, and auto-submit settings
     my $debug_mode = $self->retrieve_data('debug_mode') || 0;
+    my $discovery_mode = $self->retrieve_data('discovery_mode') || 0;
     my $auto_submit_after_drawer = $self->retrieve_data('auto_submit_after_drawer') || 0;
 
     # Properly escape JavaScript strings
@@ -474,6 +492,7 @@ window.qzConfig = {
     registerMappings: JSON.parse('$mappings_json'),
     currentRegister: '$current_register_escaped',
     debugMode: $debug_mode,
+    discoveryMode: $discovery_mode,
     autoSubmitAfterDrawer: $auto_submit_after_drawer
 };
 </script>
@@ -1078,6 +1097,42 @@ sub _clear_printer_discovery {
     $self->_log_event('info', 'Printer discovery data cleared', {
         action => 'clear_printer_discovery'
     });
+}
+
+=head3 _is_supported_printer
+
+Check if a printer is supported based on the drawer codes in qz-drawer.js
+
+    my $is_supported = $self->_is_supported_printer($printer_name);
+
+Returns true if the printer has a specific drawer code defined, false otherwise.
+
+=cut
+
+sub _is_supported_printer {
+    my ($self, $printer_name) = @_;
+
+    return 0 unless defined $printer_name && length($printer_name) > 0;
+
+    # List of supported printer model patterns from qz-drawer.js getDrawerCode function
+    my @supported_patterns = (
+        'Bixolon SRP-350',
+        'Epson TM-T88V',
+        'Metapace T',
+        'Citizen CBM1000',
+        'Citizen CBM1000 TYPE II',
+        'Citizen CT-S2000',
+        'CT-S2000',
+        'Citizen CTS2000',
+        'CTS2000',
+    );
+
+    # Check if printer name contains any of the supported patterns
+    foreach my $pattern (@supported_patterns) {
+        return 1 if index($printer_name, $pattern) != -1;
+    }
+
+    return 0;
 }
 
 

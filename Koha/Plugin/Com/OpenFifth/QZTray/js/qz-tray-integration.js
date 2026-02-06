@@ -90,8 +90,8 @@
                         // Initialize POS toolbar now that drawer is ready
                         this.posToolbar.initialize();
 
-                        // Discover and log printers if debug mode is enabled
-                        if (window.qzConfig.debugMode) {
+                        // Discover and log printers if discovery mode or debug mode is enabled
+                        if (window.qzConfig.discoveryMode || window.qzConfig.debugMode) {
                             this.discoverPrinters();
                         }
                     } else {
@@ -163,15 +163,15 @@
         },
 
         /**
-         * Discover all available printers and log to server (debug mode only)
+         * Discover all available printers and log to server (discovery mode or debug mode)
          */
         discoverPrinters: function() {
-            if (!window.qzConfig.debugMode) {
+            if (!window.qzConfig.discoveryMode && !window.qzConfig.debugMode) {
                 return;
             }
 
             if (window.qzConfig.debugMode) {
-                console.log('QZ Tray: Starting printer discovery for debugging');
+                console.log('QZ Tray: Starting printer discovery');
             }
 
             var self = this;
@@ -208,7 +208,7 @@
          * Log discovered printers to server (internal method)
          */
         _logDiscoveredPrinters: function(printers) {
-            if (!window.qzConfig.debugMode || !printers || printers.length === 0) {
+            if ((!window.qzConfig.discoveryMode && !window.qzConfig.debugMode) || !printers || printers.length === 0) {
                 return;
             }
 
