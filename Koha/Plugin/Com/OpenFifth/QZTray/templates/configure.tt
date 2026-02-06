@@ -7,29 +7,6 @@
 [%# Build static base URL for plugin JavaScript files %]
 [% SET static_base = "/api/v1/contrib/qztray/static" %]
 
-[%# Helper macro to check if a printer is supported %]
-[% MACRO is_supported_printer(printer_name) BLOCK %]
-    [% supported_patterns = [
-        'Bixolon SRP-350',
-        'Epson TM-T88V',
-        'Metapace T',
-        'Citizen CBM1000',
-        'Citizen CBM1000 TYPE II',
-        'Citizen CT-S2000',
-        'CT-S2000',
-        'Citizen CTS2000',
-        'CTS2000'
-    ] %]
-    [% is_supported = 0 %]
-    [% FOREACH pattern IN supported_patterns %]
-        [% IF printer_name.search(pattern) %]
-            [% is_supported = 1 %]
-            [% LAST %]
-        [% END %]
-    [% END %]
-    [% is_supported %]
-[% END %]
-
 [% INCLUDE 'doc-head-open.inc' %]
 <title>[% FILTER collapse %]
     [% t("QZ Tray Integration") | html %] &rsaquo;
@@ -233,11 +210,6 @@
 
                             <div class="list-group">
                                 [% FOREACH register IN library_registers %]
-                                [%# Build discovery key for this register %]
-                                [% discovery_key = library_code _ '-' _ register.id %]
-                                [% discovered_printers = printer_discovery_data.$discovery_key.printers || [] %]
-                                [% has_discovered_printers = discovered_printers.size > 0 %]
-
                                 <div class="mb-3[% IF register.is_current %] bg-light p-2 rounded border border-success[% END %]">
                                     <label for="register_printer_[% register.id %]" class="form-label">
                                         [% register.name | html %] ([% register.description | html %])
@@ -248,18 +220,10 @@
 
                                     <input type="hidden" name="register_id" value="[% register.id %]" />
 
-                                    [%# Filter to only show supported printers %]
-                                    [% supported_printers_list = [] %]
-                                    [% FOREACH printer IN discovered_printers %]
-                                        [% IF is_supported_printer(printer) %]
-                                            [% supported_printers_list.push(printer) %]
-                                        [% END %]
-                                    [% END %]
-
-                                    [% IF supported_printers_list.size > 0 %]
+                                    [% IF register.supported_printers.size > 0 %]
                                     <select name="register_printer" id="register_printer_[% register.id %]" class="form-select" data-branch="[% library_code | html %]" data-register="[% register.id %]">
                                         <option value="">Use system default printer</option>
-                                        [% FOREACH printer IN supported_printers_list %]
+                                        [% FOREACH printer IN register.supported_printers %]
                                             [% selected = (register_mappings.${register.id} == printer) ? 'selected="selected"' : '' %]
                                             <option value="[% printer | html %]" [% selected %]>[% printer | html %]</option>
                                         [% END %]
@@ -274,7 +238,7 @@
                                     </select>
                                     <div class="form-text text-warning">
                                         <i class="fa fa-info-circle"></i>
-                                        [% IF discovered_printers.size > 0 %]
+                                        [% IF register.has_unsupported %]
                                         Printers were discovered but none are currently supported. Contact OpenFifth to add support for these models.
                                         [% ELSE %]
                                         No printers have been discovered for this register yet.
@@ -283,24 +247,6 @@
                                         [% ELSE %]
                                         Enable Discovery Mode to start collecting printer data.
                                         [% END %]
-                                        [% END %]
-                                    </div>
-                                    [% END %]
-                                    [%# This ELSE handles when no printers were discovered at all %]
-                                    [% ELSE %]
-                                    <select name="register_printer" id="register_printer_[% register.id %]" class="form-select" disabled data-branch="[% library_code | html %]" data-register="[% register.id %]">
-                                        [% IF register_mappings.${register.id} %]
-                                            <option value="[% register_mappings.${register.id} | html %]" selected="selected">[% register_mappings.${register.id} | html %] (not in discovery data)</option>
-                                        [% ELSE %]
-                                            <option value="">No printers discovered</option>
-                                        [% END %]
-                                    </select>
-                                    <div class="form-text text-warning">
-                                        <i class="fa fa-info-circle"></i> No printers have been discovered for this register yet.
-                                        [% IF discovery_mode || debug_mode %]
-                                        Visit a payment page with this register selected to discover available printers.
-                                        [% ELSE %]
-                                        Enable Discovery Mode to start collecting printer data.
                                         [% END %]
                                     </div>
                                     [% END %]

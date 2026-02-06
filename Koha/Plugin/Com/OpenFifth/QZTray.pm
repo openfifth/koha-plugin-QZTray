@@ -39,6 +39,71 @@ our $metadata = {
     version         => $VERSION,
 };
 
+# Definitive printer support mapping
+# Maps printer name patterns to drawer control codes
+# Pattern matching is case-insensitive
+our $PRINTER_DRAWER_CODES = {
+    # Bixolon printers
+    'Bixolon SRP-350' => {
+        code => 'ESC_p_0_55_y',  # chr(27).chr(112).chr(48).chr(55).chr(121)
+        bytes => [27, 112, 48, 55, 121],
+        description => 'Bixolon SRP-350'
+    },
+
+    # Epson printers
+    'Epson TM-T88V' => {
+        code => 'ESC_p_0_55_y',
+        bytes => [27, 112, 48, 55, 121],
+        description => 'Epson TM-T88V'
+    },
+
+    # Metapace printers
+    'Metapace T' => {
+        code => 'ESC_p_0_55_y',
+        bytes => [27, 112, 48, 55, 121],
+        description => 'Metapace T-series'
+    },
+
+    # Citizen printers (different code)
+    'Citizen CBM1000' => {
+        code => 'ESC_p_0_50_250',  # chr(27).chr(112).chr(0).chr(50).chr(250)
+        bytes => [27, 112, 0, 50, 250],
+        description => 'Citizen CBM1000'
+    },
+    'Citizen CBM1000 TYPE II' => {
+        code => 'ESC_p_0_50_250',
+        bytes => [27, 112, 0, 50, 250],
+        description => 'Citizen CBM1000 Type II'
+    },
+    'Citizen CT-S2000' => {
+        code => 'ESC_p_0_50_250',
+        bytes => [27, 112, 0, 50, 250],
+        description => 'Citizen CT-S2000'
+    },
+    'CT-S2000' => {
+        code => 'ESC_p_0_50_250',
+        bytes => [27, 112, 0, 50, 250],
+        description => 'CT-S2000'
+    },
+    'Citizen CTS2000' => {
+        code => 'ESC_p_0_50_250',
+        bytes => [27, 112, 0, 50, 250],
+        description => 'Citizen CTS2000'
+    },
+    'CTS2000' => {
+        code => 'ESC_p_0_50_250',
+        bytes => [27, 112, 0, 50, 250],
+        description => 'CTS2000'
+    },
+};
+
+# Default drawer code for unknown printers
+our $DEFAULT_DRAWER_CODE = {
+    code => 'ESC_p_0_55_y',
+    bytes => [27, 112, 48, 55, 121],
+    description => 'Default/Generic ESC/POS'
+};
+
 sub new {
     my ( $class, $args ) = @_;
 
@@ -104,16 +169,36 @@ sub configure {
             }
         );
 
-        # Group registers by library
+        # Get printer discovery data (always loaded for printer settings)
+        my $discovery = $self->_get_printer_discovery();
+
+        # Group registers by library and add supported printer data
         my %registers_by_library;
         while (my $register = $registers->next) {
             my $library = $register->library;
+            my $branch_code = $library->branchcode;
+            my $register_id = $register->id;
+
+            # Get discovered printers for this branch+register combination
+            my $discovery_key = "${branch_code}-${register_id}";
+            my $all_printers = $discovery->{$discovery_key}->{printers} || [];
+
+            # Filter to only supported printers
+            my @supported_printers;
+            foreach my $printer (@$all_printers) {
+                if ($self->_is_supported_printer($printer)) {
+                    push @supported_printers, $printer;
+                }
+            }
+
             push @{$registers_by_library{$library->branchcode}}, {
                 id => $register->id,
                 name => $register->name,
                 description => $register->description,
                 is_current => ($register->id eq $current_register_id),
-                library => $library
+                library => $library,
+                supported_printers => \@supported_printers,
+                has_unsupported => (scalar(@$all_printers) > scalar(@supported_printers)),
             };
         }
 
@@ -137,9 +222,6 @@ sub configure {
         my $debug_mode = $self->retrieve_data('debug_mode') || 0;
         my $discovery_mode = $self->retrieve_data('discovery_mode') || 0;
         my $auto_submit_after_drawer = $self->retrieve_data('auto_submit_after_drawer') || 0;
-
-        # Get printer discovery data (always loaded for printer settings)
-        my $discovery = $self->_get_printer_discovery();
 
         # Prepare discovery display for debug mode
         my $printer_discovery_display = [];
@@ -468,6 +550,7 @@ sub _generate_qz_js {
     # Properly escape JavaScript strings
     my $mappings_json = $self->_escape_js_string(JSON::encode_json($mappings_data));
     my $current_register_escaped = $self->_escape_js_string($current_register);
+    my $printer_support_json = $self->_escape_js_string($self->_get_printer_support_mapping_json());
 
     # API routes are served at /api/v1/contrib/{namespace}{route}
     my $api_base = "/api/v1/contrib/" . $self->api_namespace;
@@ -493,7 +576,8 @@ window.qzConfig = {
     currentRegister: '$current_register_escaped',
     debugMode: $debug_mode,
     discoveryMode: $discovery_mode,
-    autoSubmitAfterDrawer: $auto_submit_after_drawer
+    autoSubmitAfterDrawer: $auto_submit_after_drawer,
+    printerSupport: JSON.parse('$printer_support_json')
 };
 </script>
 
@@ -1099,9 +1183,37 @@ sub _clear_printer_discovery {
     });
 }
 
+=head3 _get_printer_drawer_code
+
+Get the drawer control code for a printer (case-insensitive matching)
+
+    my $drawer_code_info = $self->_get_printer_drawer_code($printer_name);
+    # Returns: { code => 'ESC_p_0_55_y', bytes => [27, 112, 48, 55, 121], description => '...' }
+    # Returns undef if printer not supported
+
+=cut
+
+sub _get_printer_drawer_code {
+    my ($self, $printer_name) = @_;
+
+    return unless defined $printer_name && length($printer_name) > 0;
+
+    # Case-insensitive matching against supported printer patterns
+    my $printer_lower = lc($printer_name);
+
+    foreach my $pattern (keys %$PRINTER_DRAWER_CODES) {
+        my $pattern_lower = lc($pattern);
+        if (index($printer_lower, $pattern_lower) != -1) {
+            return $PRINTER_DRAWER_CODES->{$pattern};
+        }
+    }
+
+    return; # Not supported
+}
+
 =head3 _is_supported_printer
 
-Check if a printer is supported based on the drawer codes in qz-drawer.js
+Check if a printer is supported (case-insensitive matching)
 
     my $is_supported = $self->_is_supported_printer($printer_name);
 
@@ -1114,25 +1226,55 @@ sub _is_supported_printer {
 
     return 0 unless defined $printer_name && length($printer_name) > 0;
 
-    # List of supported printer model patterns from qz-drawer.js getDrawerCode function
-    my @supported_patterns = (
-        'Bixolon SRP-350',
-        'Epson TM-T88V',
-        'Metapace T',
-        'Citizen CBM1000',
-        'Citizen CBM1000 TYPE II',
-        'Citizen CT-S2000',
-        'CT-S2000',
-        'Citizen CTS2000',
-        'CTS2000',
-    );
+    # Use the drawer code lookup - if we get a code, it's supported
+    return defined $self->_get_printer_drawer_code($printer_name);
+}
 
-    # Check if printer name contains any of the supported patterns
-    foreach my $pattern (@supported_patterns) {
-        return 1 if index($printer_name, $pattern) != -1;
+=head3 _get_supported_printer_patterns
+
+Get list of all supported printer patterns
+
+    my @patterns = $self->_get_supported_printer_patterns();
+
+Returns array of printer name patterns that are supported.
+
+=cut
+
+sub _get_supported_printer_patterns {
+    my ($self) = @_;
+    return sort keys %$PRINTER_DRAWER_CODES;
+}
+
+=head3 _get_printer_support_mapping_json
+
+Get the printer support mapping as JSON for JavaScript
+
+    my $json = $self->_get_printer_support_mapping_json();
+
+Returns JSON string with printer patterns and their drawer codes.
+
+=cut
+
+sub _get_printer_support_mapping_json {
+    my ($self) = @_;
+
+    # Convert the mapping to a JavaScript-friendly format
+    my %js_mapping;
+    foreach my $pattern (keys %$PRINTER_DRAWER_CODES) {
+        my $code_info = $PRINTER_DRAWER_CODES->{$pattern};
+        $js_mapping{$pattern} = {
+            bytes => $code_info->{bytes},
+            description => $code_info->{description}
+        };
     }
 
-    return 0;
+    # Add default code
+    $js_mapping{'_default'} = {
+        bytes => $DEFAULT_DRAWER_CODE->{bytes},
+        description => $DEFAULT_DRAWER_CODE->{description}
+    };
+
+    return JSON::encode_json(\%js_mapping);
 }
 
 

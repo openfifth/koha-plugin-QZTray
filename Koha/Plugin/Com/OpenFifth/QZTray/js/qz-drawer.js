@@ -17,40 +17,55 @@
     QZDrawer.prototype = {
         /**
          * Get drawer control code based on printer model
+         * Uses printer support mapping from config for case-insensitive matching
          */
         getDrawerCode: function(printer) {
             var chr = function(i) {
                 return String.fromCharCode(i);
             };
 
-            var code = [chr(27) + chr(112) + chr(48) + chr(55) + chr(121)]; // default code
+            var bytesToString = function(bytes) {
+                var result = '';
+                for (var i = 0; i < bytes.length; i++) {
+                    result += chr(bytes[i]);
+                }
+                return result;
+            };
+
+            // Get default code
+            var defaultBytes = window.qzConfig.printerSupport._default.bytes;
+            var defaultCode = [bytesToString(defaultBytes)];
 
             // Handle case where printer is undefined or null
             if (!printer || typeof printer !== 'string') {
                 if (window.qzConfig.debugMode) {
                     console.log('No printer name provided, using default drawer code');
                 }
-                return code;
+                return defaultCode;
             }
 
-            if (
-              printer.indexOf("Bixolon SRP-350") !== -1 ||
-              printer.indexOf("Epson TM-T88V") !== -1 ||
-              printer.indexOf("Metapace T") !== -1
-            ) {
-              code = [chr(27) + chr(112) + chr(48) + chr(55) + chr(121)];
+            // Case-insensitive matching against supported printer patterns
+            var printerLower = printer.toLowerCase();
+            var supportMapping = window.qzConfig.printerSupport;
+
+            for (var pattern in supportMapping) {
+                if (pattern === '_default') continue; // Skip default entry
+
+                var patternLower = pattern.toLowerCase();
+                if (printerLower.indexOf(patternLower) !== -1) {
+                    var bytes = supportMapping[pattern].bytes;
+                    if (window.qzConfig.debugMode) {
+                        console.log('Matched printer pattern:', pattern, '- Using drawer code:', supportMapping[pattern].description);
+                    }
+                    return [bytesToString(bytes)];
+                }
             }
-            if (
-              printer.indexOf("Citizen CBM1000") !== -1 ||
-              printer.indexOf("Citizen CBM1000 TYPE II") === -1 ||
-              printer.indexOf("Citizen CT-S2000") !== -1 ||
-              printer.indexOf("CT-S2000") !== -1 ||
-              printer.indexOf("Citizen CTS2000") !== -1 ||
-              printer.indexOf("CTS2000") !== -1
-            ) {
-              code = [chr(27) + chr(112) + chr(0) + chr(50) + chr(250)];
+
+            // No match found, use default
+            if (window.qzConfig.debugMode) {
+                console.log('No matching printer pattern found for:', printer, '- Using default drawer code');
             }
-            return code;
+            return defaultCode;
         },
 
         /**
