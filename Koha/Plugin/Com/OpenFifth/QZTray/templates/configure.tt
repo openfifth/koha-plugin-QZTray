@@ -279,63 +279,67 @@
                             </button>
                         </div>
 
-                        <div class="row">
-                            [% FOREACH entry IN printer_discovery %]
-                            <div class="col-md-6 mb-3">
-                                <div class="card">
-                                    <div class="card-header bg-light">
-                                        <strong>[% entry.branch_name | html %]</strong>
-                                        <small class="text-muted">([% entry.branch_code | html %])</small>
-                                        [% IF entry.register_name %]
-                                            <br>
-                                            <small>
-                                                Register: [% entry.register_name | html %]
-                                                [% IF entry.register_id %]
-                                                    (ID: [% entry.register_id | html %])
-                                                [% END %]
-                                            </small>
-                                        [% ELSE %]
-                                            <br>
-                                            <small class="text-muted">No register selected</small>
-                                        [% END %]
-                                    </div>
-                                    <div class="card-body">
-                                        <h6>Printers Discovered ([% entry.printer_count %]):</h6>
+                        [% FOREACH branch_code IN printer_discovery.keys.sort %]
+                        [% branch_data = printer_discovery.$branch_code %]
+                        <fieldset class="border rounded p-3 mb-4">
+                            <legend class="fw-bold text-dark fs-5 px-2">
+                                [% branch_data.branch_name | html %]
+                                <small class="text-muted">([% branch_data.branch_code | html %])</small>
+                            </legend>
 
-                                        [% IF entry.supported_printers.size > 0 %]
-                                        <div class="mb-2">
-                                            <strong class="text-success">Supported Printers:</strong>
-                                            <ul class="list-unstyled mb-1">
-                                                [% FOREACH printer IN entry.supported_printers %]
-                                                <li class="text-success"><i class="fa fa-check-circle"></i> [% printer | html %]</li>
+                            <div class="row">
+                                [% FOREACH register IN branch_data.registers %]
+                                <div class="col-md-6 mb-3">
+                                    <div class="card">
+                                        <div class="card-header bg-light">
+                                            [% IF register.register_name %]
+                                                <strong>Register: [% register.register_name | html %]</strong>
+                                                [% IF register.register_id %]
+                                                    <small class="text-muted">(ID: [% register.register_id | html %])</small>
                                                 [% END %]
-                                            </ul>
+                                            [% ELSE %]
+                                                <strong>No register selected</strong>
+                                            [% END %]
                                         </div>
-                                        [% END %]
+                                        <div class="card-body">
+                                            <h6>Printers Discovered ([% register.printer_count %]):</h6>
 
-                                        [% IF entry.unsupported_printers.size > 0 %]
-                                        <div class="mb-2">
-                                            <strong class="text-danger">Unsupported Printers:</strong>
-                                            <ul class="list-unstyled mb-1">
-                                                [% FOREACH printer IN entry.unsupported_printers %]
-                                                <li class="text-danger"><i class="fa fa-times-circle"></i> [% printer | html %]</li>
-                                                [% END %]
-                                            </ul>
-                                            <div class="alert alert-warning mt-2 mb-2">
-                                                <small><i class="fa fa-info-circle"></i> Unsupported printers will not have drawer opening functionality. Contact OpenFifth to add support for these models.</small>
+                                            [% IF register.supported_printers.size > 0 %]
+                                            <div class="mb-2">
+                                                <strong class="text-success">Supported Printers:</strong>
+                                                <ul class="list-unstyled mb-1">
+                                                    [% FOREACH printer IN register.supported_printers %]
+                                                    <li class="text-success"><i class="fa fa-check-circle"></i> [% printer | html %]</li>
+                                                    [% END %]
+                                                </ul>
                                             </div>
-                                        </div>
-                                        [% END %]
+                                            [% END %]
 
-                                        <div class="text-muted small">
-                                            <div>First seen: [% entry.first_seen_formatted | html %]</div>
-                                            <div>Last seen: [% entry.last_seen_formatted | html %]</div>
+                                            [% IF register.unsupported_printers.size > 0 %]
+                                            <div class="mb-2">
+                                                <strong class="text-danger">Unsupported Printers:</strong>
+                                                <ul class="list-unstyled mb-1">
+                                                    [% FOREACH printer IN register.unsupported_printers %]
+                                                    <li class="text-danger"><i class="fa fa-times-circle"></i> [% printer | html %]</li>
+                                                    [% END %]
+                                                </ul>
+                                                <div class="alert alert-warning mt-2 mb-2">
+                                                    <small><i class="fa fa-info-circle"></i> Unsupported printers will not have drawer opening functionality. Contact OpenFifth to add support for these models.</small>
+                                                </div>
+                                            </div>
+                                            [% END %]
+
+                                            <div class="text-muted small">
+                                                <div>First seen: [% register.first_seen_formatted | html %]</div>
+                                                <div>Last seen: [% register.last_seen_formatted | html %]</div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
+                                [% END %]
                             </div>
-                            [% END %]
-                        </div>
+                        </fieldset>
+                        [% END %]
                     </fieldset>
                     [% ELSIF debug_mode %]
                     <fieldset>

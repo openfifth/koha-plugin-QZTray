@@ -224,15 +224,29 @@ sub configure {
         my $auto_submit_after_drawer = $self->retrieve_data('auto_submit_after_drawer') || 0;
 
         # Prepare discovery display for debug mode
-        my $printer_discovery_display = [];
+        my $printer_discovery_display = {};
         if ($debug_mode) {
-            # Convert hash to sorted array for template display
+            # Group entries by branch for clearer display
             foreach my $key (sort keys %$discovery) {
                 my $entry = $discovery->{$key};
-                $entry->{key} = $key;
-                $entry->{first_seen_formatted} = scalar(localtime($entry->{first_seen}));
-                $entry->{last_seen_formatted} = scalar(localtime($entry->{last_seen}));
-                $entry->{printer_count} = scalar(@{$entry->{printers} || []});
+                my $branch_code = $entry->{branch_code} || 'unknown';
+
+                # Initialize branch array if needed
+                $printer_discovery_display->{$branch_code} ||= {
+                    branch_code => $branch_code,
+                    branch_name => $entry->{branch_name} || $branch_code,
+                    registers => []
+                };
+
+                # Build register entry
+                my $register_entry = {
+                    key => $key,
+                    register_id => $entry->{register_id},
+                    register_name => $entry->{register_name},
+                    first_seen_formatted => scalar(localtime($entry->{first_seen})),
+                    last_seen_formatted => scalar(localtime($entry->{last_seen})),
+                    printer_count => scalar(@{$entry->{printers} || []}),
+                };
 
                 # Categorize printers as supported or unsupported
                 my @supported_printers;
@@ -244,10 +258,10 @@ sub configure {
                         push @unsupported_printers, $printer;
                     }
                 }
-                $entry->{supported_printers} = \@supported_printers;
-                $entry->{unsupported_printers} = \@unsupported_printers;
+                $register_entry->{supported_printers} = \@supported_printers;
+                $register_entry->{unsupported_printers} = \@unsupported_printers;
 
-                push @$printer_discovery_display, $entry;
+                push @{$printer_discovery_display->{$branch_code}->{registers}}, $register_entry;
             }
         }
 
