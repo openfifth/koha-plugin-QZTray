@@ -25,7 +25,7 @@ eval {
     $OPENSSL_AVAILABLE = 0;
 };
 
-our $VERSION         = '1.1.11';
+our $VERSION         = '1.1.12';
 our $MINIMUM_VERSION = "22.05.00.000";
 
 our $metadata = {
