@@ -180,12 +180,13 @@ sub configure {
             my $register_id = $register->id;
 
             # Get discovered printers for this branch+register combination
-            my $discovery_key = "${branch_code}-${register_id}";
-            my $all_printers = $discovery->{$discovery_key}->{printers} || [];
+            my $register_discovery =
+                $discovery->{$branch_code}->{registers}->{$register_id} || {};
+            my @all_printer_names = keys %{$register_discovery->{printers} || {}};
 
             # Filter to only supported printers
             my @supported_printers;
-            foreach my $printer (@$all_printers) {
+            foreach my $printer (@all_printer_names) {
                 if ($self->_is_supported_printer($printer)) {
                     push @supported_printers, $printer;
                 }
@@ -198,7 +199,7 @@ sub configure {
                 is_current => ($register->id eq $current_register_id),
                 library => $library,
                 supported_printers => \@supported_printers,
-                has_unsupported => (scalar(@$all_printers) > scalar(@supported_printers)),
+                has_unsupported => (scalar(@all_printer_names) > scalar(@supported_printers)),
             };
         }
 
@@ -226,42 +227,47 @@ sub configure {
         # Prepare discovery display for debug mode
         my $printer_discovery_display = {};
         if ($debug_mode) {
-            # Group entries by branch for clearer display
-            foreach my $key (sort keys %$discovery) {
-                my $entry = $discovery->{$key};
-                my $branch_code = $entry->{branch_code} || 'unknown';
+            # Process the nested structure for display
+            foreach my $branch_code (sort keys %$discovery) {
+                my $branch_data = $discovery->{$branch_code};
 
-                # Initialize branch array if needed
-                $printer_discovery_display->{$branch_code} ||= {
+                $printer_discovery_display->{$branch_code} = {
                     branch_code => $branch_code,
-                    branch_name => $entry->{branch_name} || $branch_code,
+                    branch_name => $branch_data->{branch_name} || $branch_code,
                     registers => []
                 };
 
-                # Build register entry
-                my $register_entry = {
-                    key => $key,
-                    register_id => $entry->{register_id},
-                    register_name => $entry->{register_name},
-                    first_seen_formatted => scalar(localtime($entry->{first_seen})),
-                    last_seen_formatted => scalar(localtime($entry->{last_seen})),
-                    printer_count => scalar(@{$entry->{printers} || []}),
-                };
+                foreach my $register_id (sort keys %{$branch_data->{registers} || {}}) {
+                    my $register_data = $branch_data->{registers}->{$register_id};
+                    my $printers = $register_data->{printers} || {};
 
-                # Categorize printers as supported or unsupported
-                my @supported_printers;
-                my @unsupported_printers;
-                foreach my $printer (@{$entry->{printers} || []}) {
-                    if ($self->_is_supported_printer($printer)) {
-                        push @supported_printers, $printer;
-                    } else {
-                        push @unsupported_printers, $printer;
+                    # Build register entry with printer categorization
+                    my $register_entry = {
+                        register_id => $register_id,
+                        register_name => $register_data->{register_name} || '',
+                        printer_count => scalar(keys %$printers),
+                        supported_printers => [],
+                        unsupported_printers => []
+                    };
+
+                    # Categorize printers and format timestamps
+                    foreach my $printer_name (sort keys %$printers) {
+                        my $printer_info = $printers->{$printer_name};
+                        my $printer_display = {
+                            name => $printer_name,
+                            first_seen_formatted => scalar(localtime($printer_info->{first_seen})),
+                            last_seen_formatted => scalar(localtime($printer_info->{last_seen}))
+                        };
+
+                        if ($self->_is_supported_printer($printer_name)) {
+                            push @{$register_entry->{supported_printers}}, $printer_display;
+                        } else {
+                            push @{$register_entry->{unsupported_printers}}, $printer_display;
+                        }
                     }
-                }
-                $register_entry->{supported_printers} = \@supported_printers;
-                $register_entry->{unsupported_printers} = \@unsupported_printers;
 
-                push @{$printer_discovery_display->{$branch_code}->{registers}}, $register_entry;
+                    push @{$printer_discovery_display->{$branch_code}->{registers}}, $register_entry;
+                }
             }
         }
 
@@ -1090,7 +1096,7 @@ Log discovered printers for a branch+register combination (only when debug mode 
         page_url => '/pos/pay.pl'
     });
 
-Stores data as a hash keyed by "branch_code-register_id" with unique printer lists.
+Stores data in a nested structure: branch -> register -> printer with per-printer timestamps.
 
 =cut
 
@@ -1107,37 +1113,47 @@ sub _log_printer_discovery {
     # If decode failed, start fresh
     $printer_discovery = {} unless ref($printer_discovery) eq 'HASH';
 
-    # Create key for this branch+register combination
     my $branch_code = $discovery_data->{branch_code} || 'unknown';
     my $register_id = $discovery_data->{register_id} || 'none';
-    my $key = "${branch_code}-${register_id}";
+    my $current_time = time();
 
-    # Get or create entry for this key
-    my $entry = $printer_discovery->{$key} || {
-        branch_code => $branch_code,
+    # Initialize branch if it doesn't exist
+    $printer_discovery->{$branch_code} ||= {
         branch_name => $discovery_data->{branch_name} || $branch_code,
-        register_id => $register_id ne 'none' ? $register_id : '',
-        register_name => $discovery_data->{register_name} || '',
-        printers => [],
-        first_seen => time(),
-        last_seen => time()
+        registers => {}
     };
 
-    # Update metadata
-    $entry->{branch_name} = $discovery_data->{branch_name} if $discovery_data->{branch_name};
-    $entry->{register_name} = $discovery_data->{register_name} if $discovery_data->{register_name};
-    $entry->{last_seen} = time();
-
-    # Merge new printers with existing ones (keep unique)
-    my %seen_printers = map { $_ => 1 } @{$entry->{printers} || []};
-    foreach my $printer (@{$discovery_data->{printers} || []}) {
-        next if $seen_printers{$printer};
-        push @{$entry->{printers}}, $printer;
-        $seen_printers{$printer} = 1;
+    # Update branch name if provided
+    if ($discovery_data->{branch_name}) {
+        $printer_discovery->{$branch_code}->{branch_name} = $discovery_data->{branch_name};
     }
 
-    # Store updated entry
-    $printer_discovery->{$key} = $entry;
+    # Initialize register if it doesn't exist
+    $printer_discovery->{$branch_code}->{registers}->{$register_id} ||= {
+        register_name => $discovery_data->{register_name} || '',
+        printers => {}
+    };
+
+    # Update register name if provided
+    if ($discovery_data->{register_name}) {
+        $printer_discovery->{$branch_code}->{registers}->{$register_id}->{register_name} =
+            $discovery_data->{register_name};
+    }
+
+    # Update printer timestamps
+    my $register_data = $printer_discovery->{$branch_code}->{registers}->{$register_id};
+    foreach my $printer (@{$discovery_data->{printers} || []}) {
+        if (!exists $register_data->{printers}->{$printer}) {
+            # New printer - set first_seen
+            $register_data->{printers}->{$printer} = {
+                first_seen => $current_time,
+                last_seen => $current_time
+            };
+        } else {
+            # Existing printer - update last_seen
+            $register_data->{printers}->{$printer}->{last_seen} = $current_time;
+        }
+    }
 
     # Store updated discovery data
     $self->store_data({
@@ -1145,11 +1161,11 @@ sub _log_printer_discovery {
     });
 
     # Also log to Koha log for permanent record
+    my $printer_count = scalar(keys %{$register_data->{printers}});
     $self->_log_event('debug', 'Printer discovery logged', {
-        key => $key,
         branch_code => $branch_code,
         register_id => $register_id,
-        printer_count => scalar(@{$entry->{printers}}),
+        printer_count => $printer_count,
         action => 'printer_discovery_debug'
     });
 }
@@ -1160,7 +1176,7 @@ Retrieve printer discovery data for display in configuration UI
 
     my $discovery = $self->_get_printer_discovery();
 
-Returns hash reference of discovery data keyed by "branch_code-register_id".
+Returns nested hash reference: branch_code -> registers -> register_id -> printers -> printer_name -> {first_seen, last_seen}.
 
 =cut
 

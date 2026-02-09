@@ -309,7 +309,13 @@
                                                 <strong class="text-success">Supported Printers:</strong>
                                                 <ul class="list-unstyled mb-1">
                                                     [% FOREACH printer IN register.supported_printers %]
-                                                    <li class="text-success"><i class="fa fa-check-circle"></i> [% printer | html %]</li>
+                                                    <li class="text-success mb-1">
+                                                        <i class="fa fa-check-circle"></i> <strong>[% printer.name | html %]</strong>
+                                                        <div class="text-muted small ms-3">
+                                                            <div>First seen: [% printer.first_seen_formatted | html %]</div>
+                                                            <div>Last seen: [% printer.last_seen_formatted | html %]</div>
+                                                        </div>
+                                                    </li>
                                                     [% END %]
                                                 </ul>
                                             </div>
@@ -320,7 +326,13 @@
                                                 <strong class="text-danger">Unsupported Printers:</strong>
                                                 <ul class="list-unstyled mb-1">
                                                     [% FOREACH printer IN register.unsupported_printers %]
-                                                    <li class="text-danger"><i class="fa fa-times-circle"></i> [% printer | html %]</li>
+                                                    <li class="text-danger mb-1">
+                                                        <i class="fa fa-times-circle"></i> <strong>[% printer.name | html %]</strong>
+                                                        <div class="text-muted small ms-3">
+                                                            <div>First seen: [% printer.first_seen_formatted | html %]</div>
+                                                            <div>Last seen: [% printer.last_seen_formatted | html %]</div>
+                                                        </div>
+                                                    </li>
                                                     [% END %]
                                                 </ul>
                                                 <div class="alert alert-warning mt-2 mb-2">
@@ -328,11 +340,6 @@
                                                 </div>
                                             </div>
                                             [% END %]
-
-                                            <div class="text-muted small">
-                                                <div>First seen: [% register.first_seen_formatted | html %]</div>
-                                                <div>Last seen: [% register.last_seen_formatted | html %]</div>
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
