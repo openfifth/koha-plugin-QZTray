@@ -238,7 +238,7 @@
                                     </select>
                                     [%# Hidden input preserves value for disabled selects to prevent array misalignment %]
                                     <input type="hidden" name="register_printer" value="[% register_mappings.${register.id} | html %]" />
-                                    <div class="form-text text-warning">
+                                    <div class="form-text text-danger">
                                         <i class="fa fa-info-circle"></i>
                                         [% IF register.has_unsupported %]
                                         Printers were discovered but none are currently supported. Contact OpenFifth to add support for these models.
@@ -510,7 +510,7 @@ documentReady(function() {
             option.value = savedPrinter;
             option.textContent = savedPrinter + ' (not currently available)';
             option.selected = true;
-            option.className = 'text-warning';
+            option.className = 'text-info';
             select.appendChild(option);
         }
     }
