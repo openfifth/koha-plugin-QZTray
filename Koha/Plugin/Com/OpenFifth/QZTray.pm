@@ -492,7 +492,7 @@ sub intranet_js {
     my @supported_patterns = (
         'pos/pay.pl',
         'pos/register.pl',
-        'pos/registers.pl',
+        'pos/registers.pl',       # List view - only triggers for session register
         'members/boraccount.pl',
         'members/paycollect.pl',
     );

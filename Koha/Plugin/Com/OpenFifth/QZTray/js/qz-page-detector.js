@@ -17,31 +17,40 @@
             },
             {
                 urlPattern: 'pos/register.pl',
-                selector: '#pos_cashup',
-                drawerButtonText: 'Record cashup',
-                originalButtonText: 'Continue cashup',
-                description: 'POS Register Cashup'
+                selector: '#triggerCashupModal button[type="submit"].btn-primary',
+                drawerButtonText: 'Start cashup',
+                originalButtonText: 'Start cashup',
+                description: 'POS Register Start Two-Stage Cashup'
+            },
+            {
+                urlPattern: 'pos/register.pl',
+                selector: '#triggerCashupModal button[type="button"].btn-success',
+                drawerButtonText: 'Quick cashup',
+                originalButtonText: 'Quick cashup',
+                description: 'POS Register Cashup Confirm (Quick cashup only)',
             },
             {
                 urlPattern: 'pos/register.pl',
                 selector: '#pos_refund_confirm',
-                drawerButtonText: 'Refund',
-                originalButtonText: 'Commit refund',
+                drawerButtonText: 'Confirm',
+                originalButtonText: 'Confirm',
                 description: 'POS Refund Confirmation'
             },
             {
                 urlPattern: 'pos/registers.pl',
-                selector: '.cashup_all',
-                drawerButtonText: 'Cashup all',
-                originalButtonText: 'Continue cashup',
-                description: 'All Registers Cashup'
+                selector: 'button.cashup_individual[data-registerid]',
+                drawerButtonText: 'Record cashup',
+                originalButtonText: 'Record cashup',
+                description: 'Individual Register Cashup (from list)',
+                requireSessionRegisterMatch: true  // Only trigger if register matches session
             },
             {
                 urlPattern: 'pos/registers.pl',
-                selector: 'button[data-register$="Till"]',
-                drawerButtonText: 'Start cashup',
-                originalButtonText: 'Continue cashup',
-                description: 'Individual Register Cashup'
+                selector: 'button.pos_complete_cashup[data-registerid]',
+                drawerButtonText: 'Complete cashup',
+                originalButtonText: 'Complete cashup',
+                description: 'Complete Register Cashup (from list)',
+                requireSessionRegisterMatch: true,  // Only trigger if register matches session
             },
             {
                 urlPattern: 'members/boraccount.pl',
@@ -52,10 +61,18 @@
             },
             {
                 urlPattern: 'members/paycollect.pl',
-                selector: '#paysubmit',
+                selector: '#payindivfine input[name="submitbutton"]',
                 drawerButtonText: 'Confirm',
-                originalButtonText: 'Commit payment',
-                description: 'Member Payment Collection'
+                originalButtonText: 'Confirm',
+                description: 'Member Individual Payment'
+            },
+            {
+                urlPattern: 'members/paycollect.pl',
+                selector: '#payfine input[name="submitbutton"]',
+                drawerButtonText: 'Confirm',
+                originalButtonText: 'Confirm',
+                description: 'Member Payment (All/Selected)',
+                skipIfWriteoff: true  // Special flag - check at runtime
             }
         ];
     }

@@ -39,8 +39,74 @@
             var elements = document.querySelectorAll(config.selector);
 
             elements.forEach(function(element) {
+                // Check if this is a writeoff operation that should be skipped
+                if (config.skipIfWriteoff && self._isWriteoffButton(element)) {
+                    console.log('QZ Tray: Skipping writeoff button for', config.description);
+                    return;
+                }
+
+                // Check if this requires session register match
+                if (config.requireSessionRegisterMatch && !self._matchesSessionRegister(element)) {
+                    if (window.qzConfig && window.qzConfig.debugMode) {
+                        console.log('QZ Tray: Skipping button - register does not match session register for', config.description);
+                    }
+                    return;
+                }
+
                 self._replaceButton(element, config);
             });
+        },
+
+        /**
+         * Check if a button is for a writeoff operation
+         */
+        _isWriteoffButton: function(button) {
+            // Find the parent form
+            var form = button.closest('form');
+            if (!form) {
+                return false;
+            }
+
+            // Check for writeoff operation in hidden inputs
+            var opInputs = form.querySelectorAll('input[name="op"]');
+            for (var i = 0; i < opInputs.length; i++) {
+                var opValue = opInputs[i].value;
+                if (opValue && (opValue.indexOf('writeoff') !== -1 || opValue === 'cud-writeoff')) {
+                    return true;
+                }
+            }
+
+            // Check for type=WRITEOFF parameter
+            var typeInputs = form.querySelectorAll('input[name="type"]');
+            for (var i = 0; i < typeInputs.length; i++) {
+                if (typeInputs[i].value === 'WRITEOFF') {
+                    return true;
+                }
+            }
+
+            return false;
+        },
+
+        /**
+         * Check if button's register ID matches the current session register
+         * Used on registers.pl list view - only trigger drawer for YOUR register
+         */
+        _matchesSessionRegister: function(button) {
+            // Get the register ID from the button's data attribute
+            var buttonRegisterId = button.getAttribute('data-registerid');
+            if (!buttonRegisterId) {
+                return false;
+            }
+
+            // Get the current session register from config
+            var sessionRegisterId = window.qzConfig && window.qzConfig.currentRegister;
+            if (!sessionRegisterId) {
+                // No session register - don't trigger
+                return false;
+            }
+
+            // Match if they're the same
+            return buttonRegisterId === sessionRegisterId;
         },
 
         /**
