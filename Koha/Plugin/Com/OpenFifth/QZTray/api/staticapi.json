@@ -259,6 +259,32 @@
       }
     }
   },
+  "/js/qz-printer-picker.js": {
+    "get": {
+      "x-mojo-to": "Static#get",
+      "tags": ["pluginStatic", "qztray"],
+      "parameters": [
+        {
+          "name": "v",
+          "in": "query",
+          "required": false,
+          "description": "Version parameter for cache-busting",
+          "type": "string"
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "QZ Tray inline printer picker module",
+          "schema": {
+            "type": "file"
+          }
+        },
+        "404": {
+          "description": "File not found"
+        }
+      }
+    }
+  },
   "/js/qz-page-detector.js": {
     "get": {
       "x-mojo-to": "Static#get",
