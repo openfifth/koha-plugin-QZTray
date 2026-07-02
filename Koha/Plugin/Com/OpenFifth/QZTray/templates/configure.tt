@@ -103,10 +103,17 @@
                             <div class="hint">When enabled, detailed diagnostic messages will be logged to the browser console and the full printer discovery data will be displayed at the bottom of this page. Debug mode also automatically enables discovery mode. Useful for troubleshooting printer selection and drawer operation issues.</div>
                         </div>
 
-                        <div>
+                        <div style="margin-bottom: 15px;">
                             <input type="checkbox" id="auto_submit_after_drawer" name="auto_submit_after_drawer" value="1" [% IF auto_submit_after_drawer %]checked="checked"[% END %] />
                             <label for="auto_submit_after_drawer">Auto-submit after drawer opens</label>
                             <div class="hint">When enabled, transactions will automatically continue after the cash drawer opens. When disabled, staff must click the confirmation button again after the drawer opens.</div>
+                        </div>
+
+                        <div>
+                            <label for="availability_timeout_ms">Connection timeout (ms)</label>
+                            <input type="number" id="availability_timeout_ms" name="availability_timeout_ms"
+                                   value="[% availability_timeout_ms | html %]" min="500" max="30000" step="100" />
+                            <div class="hint">How long to wait for QZ Tray to respond before showing the "No till connected" warning. The default (1500&nbsp;ms) keeps the warning fast. Increase it on sites where QZ Tray shows an "Allow" trust prompt on first connect &mdash; staff must click Allow before the connection completes, which can take longer than the default. Allowed range: 500&ndash;30000&nbsp;ms.</div>
                         </div>
                     </fieldset>
 
@@ -355,6 +362,81 @@
                             <strong>Debug Mode Active:</strong> Printers will be automatically discovered when QZ Tray-enabled pages are loaded.
                             Discovery data will appear here showing which printers are available for each branch/register combination.
                         </div>
+                    </fieldset>
+                    [% END %]
+
+                    [% IF debug_mode %]
+                    <fieldset>
+                        <legend>Connection Failure Diagnostics</legend>
+                        <div class="alert alert-info mb-3">
+                            <strong>Debug Mode Active:</strong> When a till cannot reach QZ Tray, the failure is recorded here,
+                            grouped by branch and register. A cluster of failures appearing across sites at the same time
+                            (especially <em>timeout</em> failures) points to something blocking the local QZ Tray socket
+                            &mdash; for example a network filter or TLS-intercepting proxy &mdash; rather than a plugin fault.
+                            Collection also requires Discovery or Debug mode to be enabled on the tills.
+                        </div>
+
+                        [% IF connection_failures && connection_failures.size > 0 %]
+                        <div class="mb-3">
+                            <button type="submit" name="clear_connection_failures" value="1" class="btn btn-warning">
+                                <i class="fa fa-trash"></i> Clear Connection Diagnostics
+                            </button>
+                        </div>
+
+                        [% FOREACH branch IN connection_failures %]
+                        <fieldset class="border rounded p-3 mb-4">
+                            <legend class="fw-bold text-dark fs-5 px-2">
+                                [% branch.branch_name | html %]
+                                <small class="text-muted">([% branch.branch_code | html %])</small>
+                            </legend>
+
+                            <div class="row">
+                                [% FOREACH register IN branch.registers %]
+                                <div class="col-md-6 mb-3">
+                                    <div class="card border-danger">
+                                        <div class="card-header bg-light">
+                                            [% IF register.register_name %]
+                                                <strong>Register: [% register.register_name | html %]</strong>
+                                                [% IF register.register_id %]
+                                                    <small class="text-muted">(ID: [% register.register_id | html %])</small>
+                                                [% END %]
+                                            [% ELSE %]
+                                                <strong>No register selected</strong>
+                                            [% END %]
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="mb-1">
+                                                <span class="badge bg-danger">[% register.failure_type | html %]</span>
+                                                <strong>[% register.count %]</strong> failure(s)
+                                            </p>
+                                            [% IF register.error_message %]
+                                            <div class="text-danger small mb-1">
+                                                <i class="fa fa-exclamation-triangle"></i>
+                                                [% register.error_message | html %]
+                                                [% IF register.error_name %]<span class="text-muted">([% register.error_name | html %])</span>[% END %]
+                                            </div>
+                                            [% END %]
+                                            [% IF register.timeout_ms %]
+                                            <div class="text-muted small">Timed out after [% register.timeout_ms | html %]ms</div>
+                                            [% END %]
+                                            <div class="text-muted small">
+                                                [% IF register.page_url %]<div>Page: [% register.page_url | html %]</div>[% END %]
+                                                <div>First seen: [% register.first_seen_formatted | html %]</div>
+                                                <div>Last seen: [% register.last_seen_formatted | html %]</div>
+                                                [% IF register.user_agent %]<div>Agent: [% register.user_agent | html %]</div>[% END %]
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                [% END %]
+                            </div>
+                        </fieldset>
+                        [% END %]
+                        [% ELSE %]
+                        <div class="alert alert-success">
+                            <i class="fa fa-check-circle"></i> No connection failures recorded. Tills are reaching QZ Tray successfully.
+                        </div>
+                        [% END %]
                     </fieldset>
                     [% END %]
                 </form>

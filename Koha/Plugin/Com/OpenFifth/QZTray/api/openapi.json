@@ -328,5 +328,116 @@
         }
       }
     }
+  },
+  "/log-connection": {
+    "post": {
+      "x-mojo-to": "Com::OpenFifth::QZTray::Controllers::Auth#logConnection",
+      "operationId": "logConnection",
+      "tags": [
+        "qztray-logging"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "consumes": [
+        "application/json"
+      ],
+      "parameters": [
+        {
+          "name": "body",
+          "in": "body",
+          "required": true,
+          "description": "QZ Tray connection failure diagnostics to log",
+          "schema": {
+            "type": "object",
+            "required": [
+              "failure_type"
+            ],
+            "properties": {
+              "failure_type": {
+                "type": "string",
+                "description": "Failure category: 'timeout' or 'error'"
+              },
+              "error_message": {
+                "type": "string",
+                "description": "Underlying error message, if any"
+              },
+              "error_name": {
+                "type": "string",
+                "description": "Underlying error name/type, if any"
+              },
+              "timeout_ms": {
+                "type": "integer",
+                "x-nullable": true,
+                "description": "Probe timeout in milliseconds (timeout failures only)"
+              },
+              "secure_context": {
+                "type": "boolean",
+                "x-nullable": true,
+                "description": "Whether the page was served in a secure context"
+              },
+              "user_agent": {
+                "type": "string",
+                "description": "Browser user agent string"
+              },
+              "register_id": {
+                "type": "string",
+                "description": "Register ID from session"
+              },
+              "page_url": {
+                "type": "string",
+                "description": "URL where the connection failure occurred"
+              }
+            }
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Connection failure logged successfully",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "description": "Success status"
+              }
+            }
+          }
+        },
+        "400": {
+          "description": "Invalid request data",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string",
+                "description": "Error message"
+              },
+              "error_code": {
+                "type": "string",
+                "description": "Machine-readable error code"
+              }
+            }
+          }
+        },
+        "500": {
+          "description": "Internal server error",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string",
+                "description": "Error message"
+              },
+              "error_code": {
+                "type": "string",
+                "description": "Machine-readable error code"
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }

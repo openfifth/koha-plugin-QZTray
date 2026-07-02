@@ -15,6 +15,13 @@ use Koha::Cash::Registers;
 use Koha::Libraries;
 use Try::Tiny;
 
+# Bounds for the QZ availability-probe timeout (ms), configurable per install
+use constant {
+    AVAILABILITY_TIMEOUT_DEFAULT => 1500,
+    AVAILABILITY_TIMEOUT_MIN     => 500,
+    AVAILABILITY_TIMEOUT_MAX     => 30000,
+};
+
 # Optional dependencies - gracefully handle missing OpenSSL modules
 our $OPENSSL_AVAILABLE = 1;
 eval {
@@ -143,6 +150,13 @@ sub configure {
         return;
     }
 
+    # Handle clear connection failure diagnostics action
+    if ($cgi->param('clear_connection_failures')) {
+        $self->_clear_connection_failures();
+        print $cgi->redirect("/cgi-bin/koha/plugins/run.pl?class=" . ref($self) . "&method=configure");
+        return;
+    }
+
     unless ( $cgi->param('save') || $cgi->param('upload_certificates') || $cgi->param('save_printer_config') ) {
         my $template =
           $self->get_template( { file => 'templates/configure.tt' } );
@@ -223,6 +237,7 @@ sub configure {
         my $debug_mode = $self->retrieve_data('debug_mode') || 0;
         my $discovery_mode = $self->retrieve_data('discovery_mode') || 0;
         my $auto_submit_after_drawer = $self->retrieve_data('auto_submit_after_drawer') || 0;
+        my $availability_timeout_ms = $self->_availability_timeout_ms;
 
         # Prepare discovery display for debug mode
         my $printer_discovery_display = {};
@@ -271,6 +286,41 @@ sub configure {
             }
         }
 
+        # Prepare connection failure display (shown in debug mode)
+        my $connection_failures = $self->_get_connection_failures();
+        my $connection_failures_display = [];
+        if ($debug_mode) {
+            foreach my $branch_code (sort keys %$connection_failures) {
+                my $branch_data = $connection_failures->{$branch_code};
+
+                my $branch_entry = {
+                    branch_code => $branch_code,
+                    branch_name => $branch_data->{branch_name} || $branch_code,
+                    registers => []
+                };
+
+                foreach my $register_id (sort keys %{$branch_data->{registers} || {}}) {
+                    my $rd = $branch_data->{registers}->{$register_id};
+                    push @{$branch_entry->{registers}}, {
+                        register_id => $register_id,
+                        register_name => $rd->{register_name} || '',
+                        count => $rd->{count} || 0,
+                        failure_type => $rd->{failure_type} || '',
+                        error_message => $rd->{error_message} || '',
+                        error_name => $rd->{error_name} || '',
+                        timeout_ms => $rd->{timeout_ms},
+                        secure_context => $rd->{secure_context},
+                        user_agent => $rd->{user_agent} || '',
+                        page_url => $rd->{page_url} || '',
+                        first_seen_formatted => $rd->{first_seen} ? scalar(localtime($rd->{first_seen})) : '',
+                        last_seen_formatted => $rd->{last_seen} ? scalar(localtime($rd->{last_seen})) : '',
+                    };
+                }
+
+                push @$connection_failures_display, $branch_entry;
+            }
+        }
+
         $template->param(
             certificate_file  => $cert_exists ? 'ENCRYPTED' : '',
             private_key_file  => $key_exists ? 'ENCRYPTED' : '',
@@ -286,8 +336,10 @@ sub configure {
             debug_mode => $debug_mode,
             discovery_mode => $discovery_mode,
             auto_submit_after_drawer => $auto_submit_after_drawer,
+            availability_timeout_ms => $availability_timeout_ms,
             printer_discovery => $printer_discovery_display,
             printer_discovery_data => $discovery,
+            connection_failures => $connection_failures_display,
             openssl_available => $openssl_available,
             dependency_warning => $openssl_available ? 0 : 1,
             dependency_message => $openssl_available ? '' : $dependency_check->{message},
@@ -411,12 +463,24 @@ sub configure {
             my $discovery_mode = $cgi->param('discovery_mode') ? 1 : 0;
             my $auto_submit_after_drawer = $cgi->param('auto_submit_after_drawer') ? 1 : 0;
 
+            # Availability probe timeout (ms) — clamp to sane range, default on invalid
+            my $availability_timeout_ms = $cgi->param('availability_timeout_ms');
+            if (defined $availability_timeout_ms && $availability_timeout_ms =~ /^\d+$/) {
+                $availability_timeout_ms = AVAILABILITY_TIMEOUT_MIN
+                    if $availability_timeout_ms < AVAILABILITY_TIMEOUT_MIN;
+                $availability_timeout_ms = AVAILABILITY_TIMEOUT_MAX
+                    if $availability_timeout_ms > AVAILABILITY_TIMEOUT_MAX;
+            } else {
+                $availability_timeout_ms = AVAILABILITY_TIMEOUT_DEFAULT;
+            }
+
             $self->store_data(
                 {
                     register_printer_mappings => JSON::encode_json($mappings_data),
                     debug_mode => $debug_mode,
                     discovery_mode => $discovery_mode,
                     auto_submit_after_drawer => $auto_submit_after_drawer,
+                    availability_timeout_ms => $availability_timeout_ms,
                 }
             );
 
@@ -566,6 +630,7 @@ sub _generate_qz_js {
     my $debug_mode = $self->retrieve_data('debug_mode') || 0;
     my $discovery_mode = $self->retrieve_data('discovery_mode') || 0;
     my $auto_submit_after_drawer = $self->retrieve_data('auto_submit_after_drawer') || 0;
+    my $availability_timeout_ms = $self->_availability_timeout_ms;
 
     # Properly escape JavaScript strings
     my $mappings_json = $self->_escape_js_string(JSON::encode_json($mappings_data));
@@ -597,6 +662,7 @@ window.qzConfig = {
     debugMode: $debug_mode,
     discoveryMode: $discovery_mode,
     autoSubmitAfterDrawer: $auto_submit_after_drawer,
+    availabilityTimeoutMs: $availability_timeout_ms,
     printerSupport: JSON.parse('$printer_support_json')
 };
 </script>
@@ -1210,6 +1276,161 @@ sub _clear_printer_discovery {
 
     $self->_log_event('info', 'Printer discovery data cleared', {
         action => 'clear_printer_discovery'
+    });
+}
+
+=head3 _availability_timeout_ms
+
+Return the configured QZ availability-probe timeout in milliseconds, clamped to
+a sane range. Falls back to the default when unset or invalid.
+
+    my $timeout = $self->_availability_timeout_ms;
+
+=cut
+
+sub _availability_timeout_ms {
+    my ($self) = @_;
+
+    my $value = $self->retrieve_data('availability_timeout_ms');
+    return AVAILABILITY_TIMEOUT_DEFAULT
+        unless defined $value && $value =~ /^\d+$/;
+
+    $value = AVAILABILITY_TIMEOUT_MIN if $value < AVAILABILITY_TIMEOUT_MIN;
+    $value = AVAILABILITY_TIMEOUT_MAX if $value > AVAILABILITY_TIMEOUT_MAX;
+    return $value;
+}
+
+=head3 _log_connection_failure
+
+Log a QZ Tray connection/availability probe failure for a branch+register
+combination. Aggregates by branch -> register with first_seen/last_seen and a
+running count, plus the most recent error details. Used to diagnose fleet-wide
+outages (e.g. a network filter blocking the local QZ Tray socket).
+
+    $self->_log_connection_failure({
+        branch_code    => 'MAIN',
+        branch_name    => 'Main Library',
+        register_id    => '1',
+        register_name  => 'Register 1',
+        failure_type   => 'timeout',
+        error_message  => 'Unable to establish connection with QZ',
+        error_name     => 'Error',
+        timeout_ms     => 1500,
+        secure_context => 1,
+        user_agent     => 'Mozilla/5.0 ...',
+        page_url       => '/pos/pay.pl'
+    });
+
+=cut
+
+sub _log_connection_failure {
+    my ($self, $failure_data) = @_;
+
+    return unless $failure_data && ref($failure_data) eq 'HASH';
+
+    # Retrieve existing connection failure data
+    my $failures_json = $self->retrieve_data('connection_failures') || '{}';
+    my $failures = {};
+    eval { $failures = decode_json($failures_json); };
+
+    # If decode failed, start fresh
+    $failures = {} unless ref($failures) eq 'HASH';
+
+    my $branch_code = $failure_data->{branch_code} || 'unknown';
+    my $register_id = $failure_data->{register_id} || 'none';
+    my $current_time = time();
+
+    # Initialize branch if it doesn't exist
+    $failures->{$branch_code} ||= {
+        branch_name => $failure_data->{branch_name} || $branch_code,
+        registers => {}
+    };
+
+    # Update branch name if provided
+    if ($failure_data->{branch_name}) {
+        $failures->{$branch_code}->{branch_name} = $failure_data->{branch_name};
+    }
+
+    # Initialize register if it doesn't exist
+    $failures->{$branch_code}->{registers}->{$register_id} ||= {
+        register_name => $failure_data->{register_name} || '',
+        count => 0,
+        first_seen => $current_time,
+    };
+
+    my $register_data = $failures->{$branch_code}->{registers}->{$register_id};
+
+    # Update register name if provided
+    if ($failure_data->{register_name}) {
+        $register_data->{register_name} = $failure_data->{register_name};
+    }
+
+    # Update aggregate + most-recent-failure details
+    $register_data->{count} = ($register_data->{count} || 0) + 1;
+    $register_data->{last_seen}      = $current_time;
+    $register_data->{failure_type}   = $failure_data->{failure_type};
+    $register_data->{error_message}  = $failure_data->{error_message};
+    $register_data->{error_name}     = $failure_data->{error_name};
+    $register_data->{timeout_ms}     = $failure_data->{timeout_ms};
+    $register_data->{secure_context} = $failure_data->{secure_context};
+    $register_data->{user_agent}     = $failure_data->{user_agent};
+    $register_data->{page_url}       = $failure_data->{page_url};
+
+    # Store updated failure data
+    $self->store_data({
+        connection_failures => JSON::encode_json($failures)
+    });
+
+    # Also log to Koha log for permanent record
+    $self->_log_event('warning', 'QZ Tray connection failure logged', {
+        branch_code   => $branch_code,
+        register_id   => $register_id,
+        failure_type  => $failure_data->{failure_type},
+        error_message => $failure_data->{error_message},
+        action        => 'connection_failure_debug'
+    });
+}
+
+=head3 _get_connection_failures
+
+Retrieve connection failure data for display in the configuration UI.
+
+    my $failures = $self->_get_connection_failures();
+
+Returns nested hash reference: branch_code -> registers -> register_id -> failure details.
+
+=cut
+
+sub _get_connection_failures {
+    my ($self) = @_;
+
+    my $failures_json = $self->retrieve_data('connection_failures') || '{}';
+    my $failures = {};
+    eval { $failures = decode_json($failures_json); };
+
+    # If decode failed, return empty hash
+    $failures = {} unless ref($failures) eq 'HASH';
+
+    return $failures;
+}
+
+=head3 _clear_connection_failures
+
+Clear all stored connection failure diagnostics.
+
+    $self->_clear_connection_failures();
+
+=cut
+
+sub _clear_connection_failures {
+    my ($self) = @_;
+
+    $self->store_data({
+        connection_failures => '{}'
+    });
+
+    $self->_log_event('info', 'Connection failure data cleared', {
+        action => 'clear_connection_failures'
     });
 }
 

@@ -6,11 +6,16 @@
 (function(window) {
     'use strict';
 
-    // Hard cap on how long we wait for qz-tray's websocket probe before
+    // Default cap on how long we wait for qz-tray's websocket probe before
     // declaring QZ unavailable. The qz-tray client probes several ports/TLS
     // combos sequentially when QZ isn't running, which can take 5-10s on a
     // cold page load — too slow for the "no till" warning to surface.
-    var AVAILABILITY_TIMEOUT_MS = 1500;
+    //
+    // This is only a fallback: the effective value comes from
+    // window.qzConfig.availabilityTimeoutMs (set on the plugin config page),
+    // so sites where QZ shows an "Allow" trust prompt on first connect — which
+    // the user must click before the socket completes — can raise it.
+    var DEFAULT_AVAILABILITY_TIMEOUT_MS = 1500;
 
     function QZAvailability(config, auth) {
         this.config = config;
@@ -64,12 +69,17 @@
                     resolve(value);
                 }
 
+                var timeoutMs = self._getTimeoutMs();
                 var timeoutId = setTimeout(function() {
                     if (window.qzConfig.debugMode) {
-                        console.log('QZ Tray: Availability probe timed out after ' + AVAILABILITY_TIMEOUT_MS + 'ms');
+                        console.log('QZ Tray: Availability probe timed out after ' + timeoutMs + 'ms');
                     }
+                    // A timeout (rather than an outright error) is a strong signal
+                    // that something is intercepting/blocking the local socket —
+                    // exactly the fingerprint of a network filter. Capture it.
+                    self._logConnectionFailure('timeout', null);
                     settle(false);
-                }, AVAILABILITY_TIMEOUT_MS);
+                }, timeoutMs);
 
                 qz.websocket.connect({ retries: 0, delay: 0 })
                     .then(function() {
@@ -97,6 +107,7 @@
                         if (window.qzConfig.debugMode) {
                             console.log('QZ Tray: Not available - connection error:', error.message);
                         }
+                        self._logConnectionFailure('error', error);
                         settle(false);
                     });
             });
@@ -133,6 +144,66 @@
                 console.log('QZ Tray: Marked as unavailable');
             }
             this.available = false;
+        },
+
+        /**
+         * Resolve the effective availability-probe timeout (ms). Prefers the
+         * admin-configured value from plugin config, falling back to the
+         * built-in default when unset or invalid.
+         */
+        _getTimeoutMs: function() {
+            var configured = window.qzConfig && window.qzConfig.availabilityTimeoutMs;
+            var n = parseInt(configured, 10);
+            return (isFinite(n) && n > 0) ? n : DEFAULT_AVAILABILITY_TIMEOUT_MS;
+        },
+
+        /**
+         * Report a failed availability probe to the server for fleet-wide
+         * diagnostics. Only fires when discovery or debug mode is enabled, so
+         * an operator/admin can turn it on centrally in plugin config and see
+         * which tills cannot reach QZ Tray (and why) without touching each
+         * machine. Fire-and-forget: never blocks or breaks the probe result.
+         */
+        _logConnectionFailure: function(failureType, error) {
+            if (!window.qzConfig.discoveryMode && !window.qzConfig.debugMode) {
+                return;
+            }
+
+            try {
+                var payload = {
+                    failure_type: failureType,
+                    error_message: (error && error.message) ? String(error.message) : '',
+                    error_name: (error && error.name) ? String(error.name) : '',
+                    timeout_ms: failureType === 'timeout' ? this._getTimeoutMs() : null,
+                    secure_context: (typeof window.isSecureContext === 'boolean') ? window.isSecureContext : null,
+                    user_agent: navigator.userAgent || '',
+                    register_id: this.config.getCurrentRegister ? (this.config.getCurrentRegister() || '') : '',
+                    page_url: window.location.pathname || 'unknown'
+                };
+
+                fetch(this.config.getApiUrl('/log-connection'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(payload)
+                }).then(function(response) {
+                    if (window.qzConfig.debugMode && response.ok) {
+                        console.log('QZ Tray: Connection failure logged for diagnostics');
+                    }
+                }).catch(function(logError) {
+                    if (window.qzConfig.debugMode) {
+                        console.log('QZ Tray: Failed to log connection failure:', logError);
+                    }
+                });
+            } catch (e) {
+                // Diagnostics must never interfere with normal operation
+                if (window.qzConfig.debugMode) {
+                    console.log('QZ Tray: Error while logging connection failure:', e);
+                }
+            }
         },
 
         /**

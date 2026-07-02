@@ -266,4 +266,102 @@ sub logPrinter {
     };
 }
 
+sub logConnection {
+    my $c = shift->openapi->valid_input or return;
+
+    try {
+        my $plugin = Koha::Plugin::Com::OpenFifth::QZTray->new();
+
+        # Only capture diagnostics when discovery or debug mode is enabled.
+        # This lets an admin turn fleet-wide connection logging on centrally
+        # in plugin config without touching each till.
+        my $discovery_mode = $plugin->retrieve_data('discovery_mode') || 0;
+        my $debug_mode = $plugin->retrieve_data('debug_mode') || 0;
+        unless ($discovery_mode || $debug_mode) {
+            return $c->render(
+                json => {
+                    status => 'ignored'
+                },
+                status => 200
+            );
+        }
+
+        my $body = $c->validation->param('body');
+
+        # Extract connection failure details
+        my $failure_type   = $body->{failure_type} || 'unknown';
+        my $error_message  = $body->{error_message} // '';
+        my $error_name     = $body->{error_name} // '';
+        my $timeout_ms     = $body->{timeout_ms};
+        my $secure_context = $body->{secure_context};
+        my $user_agent     = $body->{user_agent} || 'unknown_user_agent';
+        my $register_id    = $body->{register_id} || '';
+        my $page_url       = $body->{page_url} || 'unknown_url';
+
+        # Get branch and register information from session
+        my $userenv = C4::Context->userenv;
+        my $branch_code = $userenv ? $userenv->{'branch'} : 'unknown';
+        my $session_register_id = $userenv ? ($userenv->{'register_id'} || '') : '';
+
+        # Use session register_id if not provided in request
+        $register_id = $session_register_id if !$register_id;
+
+        # Get register and branch names for display
+        my $register_name = '';
+        my $branch_name = '';
+
+        if ($register_id) {
+            my $register = Koha::Cash::Registers->find($register_id);
+            if ($register) {
+                $register_name = $register->name;
+                my $library = $register->library;
+                $branch_name = $library ? $library->branchname : $branch_code;
+            }
+        }
+
+        # If no register but we have branch code, get branch name
+        if (!$branch_name && $branch_code) {
+            my $library = Koha::Libraries->find($branch_code);
+            $branch_name = $library ? $library->branchname : $branch_code;
+        }
+
+        # Store connection failure diagnostics
+        $plugin->_log_connection_failure({
+            branch_code    => $branch_code,
+            branch_name    => $branch_name,
+            register_id    => $register_id,
+            register_name  => $register_name,
+            failure_type   => $failure_type,
+            error_message  => $error_message,
+            error_name     => $error_name,
+            timeout_ms     => $timeout_ms,
+            secure_context => $secure_context,
+            user_agent     => $user_agent,
+            page_url       => $page_url,
+        });
+
+        return $c->render(
+            json => {
+                status => 'logged'
+            },
+            status => 200
+        );
+    }
+    catch {
+        my $plugin = Koha::Plugin::Com::OpenFifth::QZTray->new();
+        $plugin->_log_event('error', 'Error logging connection failure', {
+            error => "$_",
+            action => 'logConnection',
+            endpoint => '/log-connection'
+        });
+        return $c->render(
+            json => {
+                error => 'Failed to log connection failure',
+                error_code => 'CONNECTION_LOGGING_FAILED'
+            },
+            status => 500
+        );
+    };
+}
+
 1;
