@@ -68,8 +68,10 @@
                     } else {
                         console.log('QZ Tray: Not available - transactions will proceed without drawer operations');
 
-                        // Show user-visible info message when QZ is unavailable
-                        this.messaging.showWarning('Cash register not detected, transactions can continue but the any attached cash drawer will not open.');
+                        // Show user-visible warning when QZ is unavailable.
+                        // showWarning() interpolates the message as HTML, so the
+                        // <strong> wrapper renders as expected.
+                        this.messaging.showWarning('<strong>No till connected.</strong> Till will not open when taking payments.');
                     }
 
                     if (window.qzConfig.debugMode) {

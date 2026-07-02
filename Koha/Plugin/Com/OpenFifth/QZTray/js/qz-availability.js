@@ -6,6 +6,12 @@
 (function(window) {
     'use strict';
 
+    // Hard cap on how long we wait for qz-tray's websocket probe before
+    // declaring QZ unavailable. The qz-tray client probes several ports/TLS
+    // combos sequentially when QZ isn't running, which can take 5-10s on a
+    // cold page load — too slow for the "no till" warning to surface.
+    var AVAILABILITY_TIMEOUT_MS = 1500;
+
     function QZAvailability(config, auth) {
         this.config = config;
         this.auth = auth;
@@ -48,32 +54,52 @@
             // Set up authentication before checking
             this.auth.setupSecurity();
 
-            this.checkPromise = qz.websocket.connect({ retries: 0, delay: 0 })
-                .then(function() {
-                    if (window.qzConfig.debugMode) {
-                        console.log('QZ Tray: Available and connected');
-                    }
-                    self.available = true;
+            this.checkPromise = new Promise(function(resolve) {
+                var settled = false;
+                function settle(value) {
+                    if (settled) return;
+                    settled = true;
+                    self.available = value;
                     self.checkInProgress = false;
+                    resolve(value);
+                }
 
-                    // Disconnect after check
-                    return qz.websocket.disconnect()
-                        .catch(function() {
-                            // Ignore disconnect errors
-                        })
-                        .then(function() {
-                            return true;
-                        });
-                })
-                .catch(function(error) {
+                var timeoutId = setTimeout(function() {
                     if (window.qzConfig.debugMode) {
-                        console.log('QZ Tray: Not available - connection error:', error.message);
+                        console.log('QZ Tray: Availability probe timed out after ' + AVAILABILITY_TIMEOUT_MS + 'ms');
                     }
+                    settle(false);
+                }, AVAILABILITY_TIMEOUT_MS);
 
-                    self.available = false;
-                    self.checkInProgress = false;
-                    return false;
-                });
+                qz.websocket.connect({ retries: 0, delay: 0 })
+                    .then(function() {
+                        clearTimeout(timeoutId);
+                        if (window.qzConfig.debugMode) {
+                            console.log('QZ Tray: Available and connected');
+                        }
+
+                        // Late success after timeout still updates the cache so
+                        // the next popDrawer call sees the correct state, even
+                        // if we already resolved false to the UI.
+                        self.available = true;
+
+                        // Disconnect after check
+                        return qz.websocket.disconnect()
+                            .catch(function() {
+                                // Ignore disconnect errors
+                            })
+                            .then(function() {
+                                settle(true);
+                            });
+                    })
+                    .catch(function(error) {
+                        clearTimeout(timeoutId);
+                        if (window.qzConfig.debugMode) {
+                            console.log('QZ Tray: Not available - connection error:', error.message);
+                        }
+                        settle(false);
+                    });
+            });
 
             return this.checkPromise;
         },
