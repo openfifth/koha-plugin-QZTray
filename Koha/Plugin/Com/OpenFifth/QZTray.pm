@@ -32,7 +32,7 @@ eval {
     $OPENSSL_AVAILABLE = 0;
 };
 
-our $VERSION         = '1.1.15';
+our $VERSION         = '1.1.16';
 our $MINIMUM_VERSION = "22.05.00.000";
 
 our $metadata = {
