@@ -239,33 +239,53 @@ sub configure {
         my $auto_submit_after_drawer = $self->retrieve_data('auto_submit_after_drawer') || 0;
         my $availability_timeout_ms = $self->_availability_timeout_ms;
 
-        # Prepare discovery display for debug mode
-        my $printer_discovery_display = {};
+        # Prepare unified debug display (shown in debug mode). Printer discovery
+        # and QZ Tray connection/drawer diagnostics share the same branch ->
+        # register grouping, so they are merged into a single structure: each
+        # register carries its discovered printers *and* any recorded failures.
+        my $connection_failures = $self->_get_connection_failures();
+        my $debug_data = [];
+        my $debug_has_failures = 0;
         if ($debug_mode) {
-            # Process the nested structure for display
-            foreach my $branch_code (sort keys %$discovery) {
-                my $branch_data = $discovery->{$branch_code};
+            # Union of branch codes seen in either data source
+            my %branch_codes =
+                map { $_ => 1 } ( keys %$discovery, keys %$connection_failures );
 
-                $printer_discovery_display->{$branch_code} = {
+            foreach my $branch_code (sort keys %branch_codes) {
+                my $disc_branch = $discovery->{$branch_code}           || {};
+                my $fail_branch = $connection_failures->{$branch_code} || {};
+
+                my $branch_entry = {
                     branch_code => $branch_code,
-                    branch_name => $branch_data->{branch_name} || $branch_code,
-                    registers => []
+                    branch_name => $disc_branch->{branch_name}
+                        || $fail_branch->{branch_name}
+                        || $branch_code,
+                    registers => [],
                 };
 
-                foreach my $register_id (sort keys %{$branch_data->{registers} || {}}) {
-                    my $register_data = $branch_data->{registers}->{$register_id};
-                    my $printers = $register_data->{printers} || {};
+                # Union of register ids seen in either data source
+                my %register_ids = map { $_ => 1 } (
+                    keys %{ $disc_branch->{registers} || {} },
+                    keys %{ $fail_branch->{registers} || {} },
+                );
 
-                    # Build register entry with printer categorization
+                foreach my $register_id (sort keys %register_ids) {
+                    my $disc_reg = $disc_branch->{registers}->{$register_id} || {};
+                    my $fail_reg = $fail_branch->{registers}->{$register_id} || {};
+                    my $printers = $disc_reg->{printers} || {};
+
                     my $register_entry = {
                         register_id => $register_id,
-                        register_name => $register_data->{register_name} || '',
-                        printer_count => scalar(keys %$printers),
-                        supported_printers => [],
-                        unsupported_printers => []
+                        register_name => $disc_reg->{register_name}
+                            || $fail_reg->{register_name}
+                            || '',
+                        printer_count        => scalar(keys %$printers),
+                        supported_printers   => [],
+                        unsupported_printers => [],
+                        failure_categories   => [],
                     };
 
-                    # Categorize printers and format timestamps
+                    # Categorize discovered printers and format timestamps
                     foreach my $printer_name (sort keys %$printers) {
                         my $printer_info = $printers->{$printer_name};
                         my $printer_display = {
@@ -281,33 +301,12 @@ sub configure {
                         }
                     }
 
-                    push @{$printer_discovery_display->{$branch_code}->{registers}}, $register_entry;
-                }
-            }
-        }
-
-        # Prepare diagnostic failure display (shown in debug mode). Failures are
-        # grouped branch -> register -> category (connection vs drawer).
-        my $connection_failures = $self->_get_connection_failures();
-        my $connection_failures_display = [];
-        if ($debug_mode) {
-            foreach my $branch_code (sort keys %$connection_failures) {
-                my $branch_data = $connection_failures->{$branch_code};
-
-                my $branch_entry = {
-                    branch_code => $branch_code,
-                    branch_name => $branch_data->{branch_name} || $branch_code,
-                    registers => []
-                };
-
-                foreach my $register_id (sort keys %{$branch_data->{registers} || {}}) {
-                    my $rd = $branch_data->{registers}->{$register_id};
-                    my $categories = $rd->{categories} || {};
-
-                    my @category_list;
+                    # Attach diagnostic failure categories for this register
+                    my $categories = $fail_reg->{categories} || {};
                     foreach my $category_name (sort keys %$categories) {
                         my $cat = $categories->{$category_name};
-                        push @category_list, {
+                        $debug_has_failures = 1;
+                        push @{$register_entry->{failure_categories}}, {
                             category => $category_name,
                             count => $cat->{count} || 0,
                             failure_type => $cat->{failure_type} || '',
@@ -323,14 +322,10 @@ sub configure {
                         };
                     }
 
-                    push @{$branch_entry->{registers}}, {
-                        register_id => $register_id,
-                        register_name => $rd->{register_name} || '',
-                        categories => \@category_list,
-                    };
+                    push @{$branch_entry->{registers}}, $register_entry;
                 }
 
-                push @$connection_failures_display, $branch_entry;
+                push @$debug_data, $branch_entry;
             }
         }
 
@@ -350,9 +345,9 @@ sub configure {
             discovery_mode => $discovery_mode,
             auto_submit_after_drawer => $auto_submit_after_drawer,
             availability_timeout_ms => $availability_timeout_ms,
-            printer_discovery => $printer_discovery_display,
+            debug_data => $debug_data,
+            debug_has_failures => $debug_has_failures,
             printer_discovery_data => $discovery,
-            connection_failures => $connection_failures_display,
             openssl_available => $openssl_available,
             dependency_warning => $openssl_available ? 0 : 1,
             dependency_message => $openssl_available ? '' : $dependency_check->{message},

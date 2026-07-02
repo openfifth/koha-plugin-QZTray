@@ -272,32 +272,49 @@
                     </div>
                     [% END %]
 
-                    [% IF debug_mode && printer_discovery && printer_discovery.size > 0 %]
+                    [% IF debug_mode %]
                     <fieldset>
-                        <legend>Printer Discovery Debug Data</legend>
+                        <legend>Printer Discovery &amp; Diagnostics</legend>
                         <div class="alert alert-info mb-3">
-                            <strong>Debug Mode Active:</strong> This shows all printers discovered on QZ Tray-enabled pages, grouped by branch and register.
-                            Data is collected automatically when pages load. Only visible when debug mode is enabled.
+                            <strong>Debug Mode Active:</strong> This shows all printers discovered on QZ Tray-enabled pages
+                            alongside any QZ Tray failures, grouped by branch and register. Data is collected automatically
+                            when pages load and is only visible when debug mode is enabled.
+                            <br><br>
+                            <em>Connection</em> failures mean a till could not reach QZ Tray at all &mdash; a cluster across
+                            sites at the same time (especially <em>timeout</em> failures) points to something blocking the
+                            local socket, such as a network filter or TLS-intercepting proxy, rather than a plugin fault.
+                            <em>Drawer</em> failures mean QZ Tray was reachable but the drawer command failed, e.g. no
+                            supported printer attached.
                         </div>
 
+                        [% IF debug_data.size > 0 %]
                         <div class="mb-3">
                             <button type="submit" name="clear_printer_discovery" value="1" class="btn btn-warning">
                                 <i class="fa fa-trash"></i> Clear Discovery Data
                             </button>
+                            <button type="submit" name="clear_connection_failures" value="1" class="btn btn-warning">
+                                <i class="fa fa-trash"></i> Clear Diagnostics
+                            </button>
                         </div>
 
-                        [% FOREACH branch_code IN printer_discovery.keys.sort %]
-                        [% branch_data = printer_discovery.$branch_code %]
+                        [% IF !debug_has_failures %]
+                        <div class="alert alert-success">
+                            <i class="fa fa-check-circle"></i> No failures recorded. Tills are reaching QZ Tray successfully.
+                        </div>
+                        [% END %]
+
+                        [% FOREACH branch IN debug_data %]
                         <fieldset class="border rounded p-3 mb-4">
                             <legend class="fw-bold text-dark fs-5 px-2">
-                                [% branch_data.branch_name | html %]
-                                <small class="text-muted">([% branch_data.branch_code | html %])</small>
+                                [% branch.branch_name | html %]
+                                <small class="text-muted">([% branch.branch_code | html %])</small>
                             </legend>
 
                             <div class="row">
-                                [% FOREACH register IN branch_data.registers %]
+                                [% FOREACH register IN branch.registers %]
+                                [% collapse_id = "unsupported-" _ branch.branch_code _ "-" _ loop.count %]
                                 <div class="col-md-6 mb-3">
-                                    <div class="card">
+                                    <div class="card[% IF register.failure_categories.size > 0 %] border-danger[% END %]">
                                         <div class="card-header bg-light">
                                             [% IF register.register_name %]
                                                 <strong>Register: [% register.register_name | html %]</strong>
@@ -330,109 +347,62 @@
 
                                             [% IF register.unsupported_printers.size > 0 %]
                                             <div class="mb-2">
-                                                <strong class="text-danger">Unsupported Printers:</strong>
-                                                <ul class="list-unstyled mb-1">
-                                                    [% FOREACH printer IN register.unsupported_printers %]
-                                                    <li class="text-danger mb-1">
-                                                        <i class="fa fa-times-circle"></i> <strong>[% printer.name | html %]</strong>
-                                                        <div class="text-muted small ms-3">
-                                                            <div>First seen: [% printer.first_seen_formatted | html %]</div>
-                                                            <div>Last seen: [% printer.last_seen_formatted | html %]</div>
-                                                        </div>
-                                                    </li>
-                                                    [% END %]
-                                                </ul>
-                                                <div class="alert alert-warning mt-2 mb-2">
-                                                    <small><i class="fa fa-info-circle"></i> Unsupported printers will not have drawer opening functionality. Contact OpenFifth to add support for these models.</small>
+                                                <button class="btn btn-link btn-sm p-0 text-danger text-decoration-none collapsed" type="button"
+                                                        data-bs-toggle="collapse" data-bs-target="#[% collapse_id %]"
+                                                        aria-expanded="false" aria-controls="[% collapse_id %]">
+                                                    <i class="fa fa-caret-right"></i>
+                                                    <strong>Unsupported Printers ([% register.unsupported_printers.size %])</strong>
+                                                </button>
+                                                <div class="collapse" id="[% collapse_id %]">
+                                                    <ul class="list-unstyled mb-1 mt-1">
+                                                        [% FOREACH printer IN register.unsupported_printers %]
+                                                        <li class="text-danger mb-1">
+                                                            <i class="fa fa-times-circle"></i> <strong>[% printer.name | html %]</strong>
+                                                            <div class="text-muted small ms-3">
+                                                                <div>First seen: [% printer.first_seen_formatted | html %]</div>
+                                                                <div>Last seen: [% printer.last_seen_formatted | html %]</div>
+                                                            </div>
+                                                        </li>
+                                                        [% END %]
+                                                    </ul>
+                                                    <div class="alert alert-warning mt-2 mb-2">
+                                                        <small><i class="fa fa-info-circle"></i> Unsupported printers will not have drawer opening functionality. Contact OpenFifth to add support for these models.</small>
+                                                    </div>
                                                 </div>
                                             </div>
                                             [% END %]
-                                        </div>
-                                    </div>
-                                </div>
-                                [% END %]
-                            </div>
-                        </fieldset>
-                        [% END %]
-                    </fieldset>
-                    [% ELSIF debug_mode %]
-                    <fieldset>
-                        <legend>Printer Discovery Debug Data</legend>
-                        <div class="alert alert-info">
-                            <strong>Debug Mode Active:</strong> Printers will be automatically discovered when QZ Tray-enabled pages are loaded.
-                            Discovery data will appear here showing which printers are available for each branch/register combination.
-                        </div>
-                    </fieldset>
-                    [% END %]
 
-                    [% IF debug_mode %]
-                    <fieldset>
-                        <legend>QZ Tray Diagnostics</legend>
-                        <div class="alert alert-info mb-3">
-                            <strong>Debug Mode Active:</strong> QZ Tray failures are recorded here, grouped by branch,
-                            register and type. <em>Connection</em> failures mean a till could not reach QZ Tray at all
-                            &mdash; a cluster across sites at the same time (especially <em>timeout</em> failures) points to
-                            something blocking the local socket, such as a network filter or TLS-intercepting proxy, rather
-                            than a plugin fault. <em>Drawer</em> failures mean QZ Tray was reachable but the drawer command
-                            failed, e.g. no supported printer attached. Collection requires Discovery or Debug mode enabled
-                            on the tills.
-                        </div>
-
-                        [% IF connection_failures && connection_failures.size > 0 %]
-                        <div class="mb-3">
-                            <button type="submit" name="clear_connection_failures" value="1" class="btn btn-warning">
-                                <i class="fa fa-trash"></i> Clear Diagnostics
-                            </button>
-                        </div>
-
-                        [% FOREACH branch IN connection_failures %]
-                        <fieldset class="border rounded p-3 mb-4">
-                            <legend class="fw-bold text-dark fs-5 px-2">
-                                [% branch.branch_name | html %]
-                                <small class="text-muted">([% branch.branch_code | html %])</small>
-                            </legend>
-
-                            <div class="row">
-                                [% FOREACH register IN branch.registers %]
-                                <div class="col-md-6 mb-3">
-                                    <div class="card border-danger">
-                                        <div class="card-header bg-light">
-                                            [% IF register.register_name %]
-                                                <strong>Register: [% register.register_name | html %]</strong>
-                                                [% IF register.register_id %]
-                                                    <small class="text-muted">(ID: [% register.register_id | html %])</small>
-                                                [% END %]
-                                            [% ELSE %]
-                                                <strong>No register selected</strong>
-                                            [% END %]
-                                        </div>
-                                        <div class="card-body">
-                                            [% FOREACH cat IN register.categories %]
-                                            <div class="mb-2 pb-2 border-bottom">
-                                                <p class="mb-1">
-                                                    <span class="badge bg-secondary text-uppercase">[% cat.category | html %]</span>
-                                                    <span class="badge bg-danger">[% cat.failure_type | html %]</span>
-                                                    <strong>[% cat.count %]</strong> failure(s)
-                                                </p>
-                                                [% IF cat.error_message %]
-                                                <div class="text-danger small mb-1">
-                                                    <i class="fa fa-exclamation-triangle"></i>
-                                                    [% cat.error_message | html %]
-                                                    [% IF cat.error_name %]<span class="text-muted">([% cat.error_name | html %])</span>[% END %]
+                                            [% IF register.failure_categories.size > 0 %]
+                                            <div class="mt-3 pt-2 border-top">
+                                                <h6 class="text-danger">Diagnostics:</h6>
+                                                [% FOREACH cat IN register.failure_categories %]
+                                                <div class="mb-2 pb-2 border-bottom">
+                                                    <p class="mb-1">
+                                                        <span class="badge bg-secondary text-uppercase">[% cat.category | html %]</span>
+                                                        <span class="badge bg-danger">[% cat.failure_type | html %]</span>
+                                                        <strong>[% cat.count %]</strong> failure(s)
+                                                    </p>
+                                                    [% IF cat.error_message %]
+                                                    <div class="text-danger small mb-1">
+                                                        <i class="fa fa-exclamation-triangle"></i>
+                                                        [% cat.error_message | html %]
+                                                        [% IF cat.error_name %]<span class="text-muted">([% cat.error_name | html %])</span>[% END %]
+                                                    </div>
+                                                    [% END %]
+                                                    [% IF cat.printer %]
+                                                    <div class="text-muted small">Printer: [% cat.printer | html %]</div>
+                                                    [% END %]
+                                                    [% IF cat.timeout_ms %]
+                                                    <div class="text-muted small">Timed out after [% cat.timeout_ms | html %]ms</div>
+                                                    [% END %]
+                                                    <div class="text-muted small">
+                                                        [% IF cat.page_url %]<div>Page: [% cat.page_url | html %]</div>[% END %]
+                                                        <div>First seen: [% cat.first_seen_formatted | html %]</div>
+                                                        <div>Last seen: [% cat.last_seen_formatted | html %]</div>
+                                                        [% IF cat.user_agent %]<div>Agent: [% cat.user_agent | html %]</div>[% END %]
+                                                    </div>
                                                 </div>
                                                 [% END %]
-                                                [% IF cat.printer %]
-                                                <div class="text-muted small">Printer: [% cat.printer | html %]</div>
-                                                [% END %]
-                                                [% IF cat.timeout_ms %]
-                                                <div class="text-muted small">Timed out after [% cat.timeout_ms | html %]ms</div>
-                                                [% END %]
-                                                <div class="text-muted small">
-                                                    [% IF cat.page_url %]<div>Page: [% cat.page_url | html %]</div>[% END %]
-                                                    <div>First seen: [% cat.first_seen_formatted | html %]</div>
-                                                    <div>Last seen: [% cat.last_seen_formatted | html %]</div>
-                                                    [% IF cat.user_agent %]<div>Agent: [% cat.user_agent | html %]</div>[% END %]
-                                                </div>
                                             </div>
                                             [% END %]
                                         </div>
@@ -443,8 +413,10 @@
                         </fieldset>
                         [% END %]
                         [% ELSE %]
-                        <div class="alert alert-success">
-                            <i class="fa fa-check-circle"></i> No failures recorded. Tills are reaching QZ Tray successfully.
+                        <div class="alert alert-info">
+                            Printers and any QZ Tray failures will be automatically recorded when QZ Tray-enabled pages
+                            are loaded. Data will appear here showing which printers are available for each branch/register
+                            combination and whether any tills failed to reach QZ Tray.
                         </div>
                         [% END %]
                     </fieldset>
