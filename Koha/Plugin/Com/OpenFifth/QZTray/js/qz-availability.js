@@ -192,13 +192,24 @@
                     failure_type: opts.failureType || 'error',
                     error_message: (error && error.message) ? String(error.message) : (opts.errorMessage || ''),
                     error_name: (error && error.name) ? String(error.name) : '',
-                    timeout_ms: (opts.timeoutMs != null) ? opts.timeoutMs : null,
-                    secure_context: (typeof window.isSecureContext === 'boolean') ? window.isSecureContext : null,
                     printer: opts.printer || '',
                     user_agent: navigator.userAgent || '',
                     register_id: this.config.getCurrentRegister ? (this.config.getCurrentRegister() || '') : '',
                     page_url: window.location.pathname || 'unknown'
                 };
+
+                // Only include the nullable fields when they hold a valid
+                // value. Koha's OpenAPI validator (Swagger 2.0) does not honour
+                // x-nullable, so an explicit null fails request validation with
+                // a 400. Omitting a non-required field is schema-valid and the
+                // controller already treats an absent field as undefined.
+                var timeoutMs = parseInt(opts.timeoutMs, 10);
+                if (isFinite(timeoutMs)) {
+                    payload.timeout_ms = timeoutMs;
+                }
+                if (typeof window.isSecureContext === 'boolean') {
+                    payload.secure_context = window.isSecureContext;
+                }
 
                 fetch(this.config.getApiUrl('/log-connection'), {
                     method: 'POST',
