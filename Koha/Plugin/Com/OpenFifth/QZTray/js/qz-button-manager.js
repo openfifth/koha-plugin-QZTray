@@ -207,6 +207,20 @@
                 return;
             }
 
+            // Gate the drawer on payment-form validation. The native Koha submit
+            // button (which the drawer button replaces) is what normally triggers
+            // jQuery Validate / HTML5 required checks. If we open the drawer first
+            // and the required cash/card fields are empty, the till opens but the
+            // payment is later blocked by validation, leaving nothing on the account
+            // or till roll. Validate up front and abort (letting Koha surface its own
+            // errors) so the drawer only opens for a payment that can actually commit.
+            if (!this._isPaymentFormValid(buttonData.original)) {
+                if (window.qzConfig && window.qzConfig.debugMode) {
+                    console.log('QZ Tray: Payment form invalid, not opening drawer for', buttonData.config.description);
+                }
+                return;
+            }
+
             // Try to acquire transaction lock
             if (!QZTransactionLock.lock()) {
                 console.warn('QZ Tray: Transaction already in progress, ignoring button click');
@@ -254,6 +268,51 @@
                     buttonData.drawer.disabled = false;
                     buttonData.drawer.value = buttonData.config.drawerButtonText;
                 });
+        },
+
+        /**
+         * Validate the payment form associated with a replaced button.
+         *
+         * Returns true when the payment can proceed (form is valid, or there is
+         * no form / nothing to validate — e.g. cashup buttons), and false when
+         * validation fails. On failure the relevant validator is asked to display
+         * its errors so staff see why nothing happened.
+         */
+        _isPaymentFormValid: function(originalButton) {
+            var form = originalButton && originalButton.closest
+                ? originalButton.closest('form')
+                : null;
+
+            // No form to gate on (e.g. cashup triggers) - preserve existing behaviour
+            if (!form) {
+                return true;
+            }
+
+            // Prefer jQuery Validate when present: Koha attaches it to the payment
+            // forms and it honours the custom rules (required amount, cash register,
+            // payment type, etc.). Calling valid() also renders the error messages.
+            try {
+                if (window.jQuery) {
+                    var $form = window.jQuery(form);
+                    if (typeof $form.valid === 'function') {
+                        return $form.valid();
+                    }
+                }
+            } catch (e) {
+                console.warn('QZ Tray: jQuery validation check failed, falling back to native validation', e);
+            }
+
+            // Fallback to native HTML5 constraint validation (fields carry `required`).
+            // reportValidity() both checks and shows the browser's own messages.
+            if (typeof form.reportValidity === 'function') {
+                return form.reportValidity();
+            }
+            if (typeof form.checkValidity === 'function') {
+                return form.checkValidity();
+            }
+
+            // Cannot determine validity - preserve existing behaviour rather than block
+            return true;
         },
 
         /**
