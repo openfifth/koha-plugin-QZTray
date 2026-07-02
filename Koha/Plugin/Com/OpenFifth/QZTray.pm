@@ -286,7 +286,8 @@ sub configure {
             }
         }
 
-        # Prepare connection failure display (shown in debug mode)
+        # Prepare diagnostic failure display (shown in debug mode). Failures are
+        # grouped branch -> register -> category (connection vs drawer).
         my $connection_failures = $self->_get_connection_failures();
         my $connection_failures_display = [];
         if ($debug_mode) {
@@ -301,19 +302,31 @@ sub configure {
 
                 foreach my $register_id (sort keys %{$branch_data->{registers} || {}}) {
                     my $rd = $branch_data->{registers}->{$register_id};
+                    my $categories = $rd->{categories} || {};
+
+                    my @category_list;
+                    foreach my $category_name (sort keys %$categories) {
+                        my $cat = $categories->{$category_name};
+                        push @category_list, {
+                            category => $category_name,
+                            count => $cat->{count} || 0,
+                            failure_type => $cat->{failure_type} || '',
+                            error_message => $cat->{error_message} || '',
+                            error_name => $cat->{error_name} || '',
+                            timeout_ms => $cat->{timeout_ms},
+                            secure_context => $cat->{secure_context},
+                            printer => $cat->{printer} || '',
+                            user_agent => $cat->{user_agent} || '',
+                            page_url => $cat->{page_url} || '',
+                            first_seen_formatted => $cat->{first_seen} ? scalar(localtime($cat->{first_seen})) : '',
+                            last_seen_formatted => $cat->{last_seen} ? scalar(localtime($cat->{last_seen})) : '',
+                        };
+                    }
+
                     push @{$branch_entry->{registers}}, {
                         register_id => $register_id,
                         register_name => $rd->{register_name} || '',
-                        count => $rd->{count} || 0,
-                        failure_type => $rd->{failure_type} || '',
-                        error_message => $rd->{error_message} || '',
-                        error_name => $rd->{error_name} || '',
-                        timeout_ms => $rd->{timeout_ms},
-                        secure_context => $rd->{secure_context},
-                        user_agent => $rd->{user_agent} || '',
-                        page_url => $rd->{page_url} || '',
-                        first_seen_formatted => $rd->{first_seen} ? scalar(localtime($rd->{first_seen})) : '',
-                        last_seen_formatted => $rd->{last_seen} ? scalar(localtime($rd->{last_seen})) : '',
+                        categories => \@category_list,
                     };
                 }
 
@@ -673,6 +686,7 @@ window.qzConfig = {
 <script type="text/javascript" src="$static_base/js/qz-messaging.js$cache_param"></script>
 <script type="text/javascript" src="$static_base/js/qz-auth.js$cache_param"></script>
 <script type="text/javascript" src="$static_base/js/qz-availability.js$cache_param"></script>
+<script type="text/javascript" src="$static_base/js/qz-printer-picker.js$cache_param"></script>
 <script type="text/javascript" src="$static_base/js/qz-drawer.js$cache_param"></script>
 <script type="text/javascript" src="$static_base/js/qz-page-detector.js$cache_param"></script>
 <script type="text/javascript" src="$static_base/js/qz-button-manager.js$cache_param"></script>
@@ -1328,7 +1342,7 @@ sub _log_connection_failure {
 
     return unless $failure_data && ref($failure_data) eq 'HASH';
 
-    # Retrieve existing connection failure data
+    # Retrieve existing diagnostic data
     my $failures_json = $self->retrieve_data('connection_failures') || '{}';
     my $failures = {};
     eval { $failures = decode_json($failures_json); };
@@ -1338,6 +1352,7 @@ sub _log_connection_failure {
 
     my $branch_code = $failure_data->{branch_code} || 'unknown';
     my $register_id = $failure_data->{register_id} || 'none';
+    my $category    = $failure_data->{category} || 'connection';
     my $current_time = time();
 
     # Initialize branch if it doesn't exist
@@ -1354,8 +1369,7 @@ sub _log_connection_failure {
     # Initialize register if it doesn't exist
     $failures->{$branch_code}->{registers}->{$register_id} ||= {
         register_name => $failure_data->{register_name} || '',
-        count => 0,
-        first_seen => $current_time,
+        categories => {},
     };
 
     my $register_data = $failures->{$branch_code}->{registers}->{$register_id};
@@ -1365,30 +1379,83 @@ sub _log_connection_failure {
         $register_data->{register_name} = $failure_data->{register_name};
     }
 
-    # Update aggregate + most-recent-failure details
-    $register_data->{count} = ($register_data->{count} || 0) + 1;
-    $register_data->{last_seen}      = $current_time;
-    $register_data->{failure_type}   = $failure_data->{failure_type};
-    $register_data->{error_message}  = $failure_data->{error_message};
-    $register_data->{error_name}     = $failure_data->{error_name};
-    $register_data->{timeout_ms}     = $failure_data->{timeout_ms};
-    $register_data->{secure_context} = $failure_data->{secure_context};
-    $register_data->{user_agent}     = $failure_data->{user_agent};
-    $register_data->{page_url}       = $failure_data->{page_url};
+    # Track connection- and drawer-category failures separately so they don't
+    # overwrite one another for the same register.
+    $register_data->{categories} ||= {};
+    my $cat = $register_data->{categories}->{$category} ||= {
+        count => 0,
+        first_seen => $current_time,
+    };
 
-    # Store updated failure data
+    # Update aggregate + most-recent-failure details for this category
+    $cat->{count}          = ($cat->{count} || 0) + 1;
+    $cat->{last_seen}      = $current_time;
+    $cat->{failure_type}   = $failure_data->{failure_type};
+    $cat->{error_message}  = $failure_data->{error_message};
+    $cat->{error_name}     = $failure_data->{error_name};
+    $cat->{timeout_ms}     = $failure_data->{timeout_ms};
+    $cat->{secure_context} = $failure_data->{secure_context};
+    $cat->{printer}        = $failure_data->{printer};
+    $cat->{user_agent}     = $failure_data->{user_agent};
+    $cat->{page_url}       = $failure_data->{page_url};
+
+    # Store updated diagnostic data
     $self->store_data({
         connection_failures => JSON::encode_json($failures)
     });
 
     # Also log to Koha log for permanent record
-    $self->_log_event('warning', 'QZ Tray connection failure logged', {
+    $self->_log_event('warning', 'QZ Tray diagnostic failure logged', {
         branch_code   => $branch_code,
         register_id   => $register_id,
+        category      => $category,
         failure_type  => $failure_data->{failure_type},
         error_message => $failure_data->{error_message},
-        action        => 'connection_failure_debug'
+        action        => 'qz_diagnostic'
     });
+}
+
+=head3 _set_register_printer_mapping
+
+Persist a register -> printer mapping chosen at the till. Validates the register
+exists and sanitises the printer name. Returns the stored (sanitised) printer
+name on success, or undef on invalid input / unknown register.
+
+    my $saved = $self->_set_register_printer_mapping($register_id, $printer);
+
+=cut
+
+sub _set_register_printer_mapping {
+    my ($self, $register_id, $printer) = @_;
+
+    return unless defined $register_id && $register_id =~ /^\d+$/;
+    return unless defined $printer && length $printer;
+
+    # Validate the register actually exists
+    my $register = Koha::Cash::Registers->find($register_id);
+    return unless $register;
+
+    my $clean = $self->_sanitize_printer_name($printer);
+    return unless defined $clean && length $clean;
+
+    my $mappings_json = $self->retrieve_data('register_printer_mappings') || '{}';
+    my $mappings = {};
+    eval { $mappings = decode_json($mappings_json); };
+    $mappings = {} unless ref($mappings) eq 'HASH';
+
+    $mappings->{$register_id} = $clean;
+
+    $self->store_data({
+        register_printer_mappings => JSON::encode_json($mappings)
+    });
+
+    $self->_log_event('info', 'Register printer mapping set inline', {
+        action      => 'set_register_printer',
+        register_id => $register_id,
+        printer     => $clean,
+    });
+
+    return $clean;
 }
 
 =head3 _get_connection_failures

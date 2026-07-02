@@ -6,11 +6,12 @@
 (function(window) {
     'use strict';
 
-    function QZDrawer(config, messaging, auth, availability) {
+    function QZDrawer(config, messaging, auth, availability, picker) {
         this.config = config;
         this.messaging = messaging;
         this.auth = auth;
         this.availability = availability;
+        this.picker = picker;
         this.operationInProgress = false;
     }
 
@@ -69,6 +70,25 @@
         },
 
         /**
+         * Test whether a printer name matches a supported printer pattern.
+         * Mirrors getDrawerCode's case-insensitive matching.
+         */
+        isSupportedPrinter: function(printer) {
+            if (!printer || typeof printer !== 'string') {
+                return false;
+            }
+            var printerLower = printer.toLowerCase();
+            var supportMapping = window.qzConfig.printerSupport;
+            for (var pattern in supportMapping) {
+                if (pattern === '_default') continue;
+                if (printerLower.indexOf(pattern.toLowerCase()) !== -1) {
+                    return true;
+                }
+            }
+            return false;
+        },
+
+        /**
          * Open cash drawer with comprehensive error handling
          */
         openDrawer: function() {
@@ -99,15 +119,21 @@
             // Set up authentication
             this.auth.setupSecurity();
 
-            return qz.websocket
-                .connect()
+            // Track the printer we actually tried so drawer failures can be
+            // reported against it in the diagnostics store.
+            var attemptedPrinter = '';
+
+            // Reuse the socket opened at page load instead of reconnecting —
+            // avoids a second "Allow" prompt and connect/disconnect churn.
+            return this.availability.ensureConnected()
                 .then(function() {
                     if (window.qzConfig.debugMode) {
-                        console.log('QZ Tray connected successfully');
+                        console.log('QZ Tray connection ready (reused if already open)');
                     }
                     return self._getPrinter();
                 })
                 .then(function(printer) {
+                    attemptedPrinter = printer;
                     if (window.qzConfig.debugMode) {
                         console.log('QZ Tray: Using printer:', printer);
                         console.log('QZ Tray: Drawer code for this printer:', self.getDrawerCode(printer));
@@ -119,18 +145,36 @@
                         console.log('Cash drawer command sent successfully');
                     }
                     self.messaging.showSuccess('Cash drawer opened successfully');
-                    return self._disconnect();
+                    // Intentionally keep the socket open for the next operation.
                 })
                 .catch(function(error) {
+                    // Staff dismissed the printer picker — benign, let the
+                    // transaction continue without a scary warning or a
+                    // diagnostics entry.
+                    if (error && error.message === 'PRINTER_SELECTION_CANCELLED') {
+                        if (window.qzConfig.debugMode) {
+                            console.log('QZ Tray: Printer selection cancelled by user');
+                        }
+                        throw error;
+                    }
+
                     // Mark QZ as unavailable if connection fails
                     if (error.message && error.message.indexOf('Unable to establish connection') !== -1) {
                         self.availability.markUnavailable();
                     }
 
                     self.messaging.handleQZError(error, 'qztray_drawer_operation');
-                    return self._disconnect().then(function() {
-                        throw error; // Re-throw to maintain promise chain
+
+                    // Feed drawer-operation failures into the same diagnostics
+                    // store as connection failures (kept alongside the warning).
+                    self.availability.logDiagnostic({
+                        category: 'drawer',
+                        failureType: self._drawerFailureType(error),
+                        error: error,
+                        printer: attemptedPrinter
                     });
+
+                    throw error; // Re-throw to maintain promise chain
                 })
                 .finally(function() {
                     // Reset operation flag after a short delay to prevent rapid-fire clicking
@@ -141,14 +185,114 @@
         },
 
         /**
-         * Get printer to use (register-specific, preferred, or default)
+         * Classify a drawer-operation failure for diagnostics.
+         */
+        _drawerFailureType: function(error) {
+            var msg = (error && error.message) ? error.message : '';
+            if (msg.toLowerCase().indexOf('printer') !== -1) {
+                return 'printer_not_found';
+            }
+            if (msg.indexOf('WebSocket') !== -1) {
+                return 'websocket';
+            }
+            return 'error';
+        },
+
+        /**
+         * Get printer to use for this operation.
+         *
+         * Order of preference:
+         *  1. The register's configured mapping, if any.
+         *  2. If exactly one supported printer is detected, use it and remember
+         *     it for this register.
+         *  3. If several supported printers are detected, ask the operator to
+         *     choose (and optionally remember the choice).
+         *  4. Otherwise fall back to the system default printer, preserving the
+         *     prior behaviour (and its "printer not found" warning) when nothing
+         *     supported is attached.
          */
         _getPrinter: function() {
+            var self = this;
+
             var selectedPrinter = this.config.getPrinter();
             if (selectedPrinter) {
                 return Promise.resolve(selectedPrinter);
-            } else {
+            }
+
+            return qz.printers.find().then(function(printers) {
+                if (!Array.isArray(printers)) {
+                    printers = printers ? [printers] : [];
+                }
+
+                var supported = printers.filter(function(p) {
+                    return self.isSupportedPrinter(p);
+                });
+
+                if (window.qzConfig.debugMode) {
+                    console.log('QZ Tray: No register mapping; supported printers detected:', supported);
+                }
+
+                if (supported.length === 1) {
+                    var only = supported[0];
+                    if (window.qzConfig.debugMode) {
+                        console.log('QZ Tray: Auto-selecting the only supported printer:', only);
+                    }
+                    self._saveRegisterPrinter(only);
+                    return only;
+                }
+
+                if (supported.length > 1 && self.picker) {
+                    return self.picker.pick(supported).then(function(result) {
+                        if (result && result.save) {
+                            self._saveRegisterPrinter(result.printer);
+                        }
+                        return result.printer;
+                    });
+                }
+
+                // Nothing supported found — fall back to the system default.
                 return qz.printers.getDefault();
+            });
+        },
+
+        /**
+         * Persist a register -> printer mapping chosen at the till so future
+         * operations skip discovery/selection. Fire-and-forget; also updates the
+         * in-memory mapping so we don't re-prompt during this session.
+         */
+        _saveRegisterPrinter: function(printer) {
+            var registerId = this.config.getCurrentRegister ? this.config.getCurrentRegister() : '';
+            if (!registerId || !printer) {
+                return; // Nothing to persist without a register context
+            }
+
+            // Optimistically update the in-memory mapping first.
+            if (this.config.registerMappings) {
+                this.config.registerMappings[registerId] = printer;
+            }
+
+            try {
+                fetch(this.config.getApiUrl('/set-register-printer'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ register_id: String(registerId), printer: printer })
+                }).then(function(response) {
+                    if (window.qzConfig.debugMode && response.ok) {
+                        console.log('QZ Tray: Saved register printer mapping:', printer);
+                    }
+                }).catch(function(err) {
+                    if (window.qzConfig.debugMode) {
+                        console.log('QZ Tray: Failed to save register printer mapping:', err);
+                    }
+                });
+            } catch (e) {
+                if (window.qzConfig.debugMode) {
+                    console.log('QZ Tray: Error saving register printer mapping:', e);
+                }
             }
         },
 
@@ -159,16 +303,6 @@
             var config = qz.configs.create(printer);
             var data = this.getDrawerCode(printer);
             return qz.print(config, data);
-        },
-
-        /**
-         * Disconnect from QZ Tray
-         */
-        _disconnect: function() {
-            if (qz.websocket && qz.websocket.disconnect) {
-                return qz.websocket.disconnect();
-            }
-            return Promise.resolve();
         },
 
         /**

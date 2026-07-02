@@ -288,12 +288,14 @@ sub logConnection {
 
         my $body = $c->validation->param('body');
 
-        # Extract connection failure details
+        # Extract diagnostic failure details
+        my $category       = $body->{category} || 'connection';
         my $failure_type   = $body->{failure_type} || 'unknown';
         my $error_message  = $body->{error_message} // '';
         my $error_name     = $body->{error_name} // '';
         my $timeout_ms     = $body->{timeout_ms};
         my $secure_context = $body->{secure_context};
+        my $printer        = $body->{printer} // '';
         my $user_agent     = $body->{user_agent} || 'unknown_user_agent';
         my $register_id    = $body->{register_id} || '';
         my $page_url       = $body->{page_url} || 'unknown_url';
@@ -325,17 +327,19 @@ sub logConnection {
             $branch_name = $library ? $library->branchname : $branch_code;
         }
 
-        # Store connection failure diagnostics
+        # Store diagnostic failure (connection or drawer category)
         $plugin->_log_connection_failure({
             branch_code    => $branch_code,
             branch_name    => $branch_name,
             register_id    => $register_id,
             register_name  => $register_name,
+            category       => $category,
             failure_type   => $failure_type,
             error_message  => $error_message,
             error_name     => $error_name,
             timeout_ms     => $timeout_ms,
             secure_context => $secure_context,
+            printer        => $printer,
             user_agent     => $user_agent,
             page_url       => $page_url,
         });
@@ -358,6 +362,80 @@ sub logConnection {
             json => {
                 error => 'Failed to log connection failure',
                 error_code => 'CONNECTION_LOGGING_FAILED'
+            },
+            status => 500
+        );
+    };
+}
+
+sub setRegisterPrinter {
+    my $c = shift->openapi->valid_input or return;
+
+    try {
+        my $plugin = Koha::Plugin::Com::OpenFifth::QZTray->new();
+        my $body   = $c->validation->param('body');
+
+        my $register_id = $body->{register_id};
+        my $printer     = $body->{printer};
+
+        # Fall back to the session register when the client doesn't supply one
+        my $userenv = C4::Context->userenv;
+        my $session_register_id = $userenv ? ($userenv->{'register_id'} || '') : '';
+        $register_id = $session_register_id
+            if !defined $register_id || $register_id eq '';
+
+        unless (defined $register_id && $register_id =~ /^\d+$/) {
+            return $c->render(
+                json => {
+                    error => 'Invalid or missing register_id',
+                    error_code => 'INVALID_REGISTER_ID'
+                },
+                status => 400
+            );
+        }
+
+        unless (defined $printer && length $printer) {
+            return $c->render(
+                json => {
+                    error => 'Missing required field: printer',
+                    error_code => 'MISSING_PRINTER'
+                },
+                status => 400
+            );
+        }
+
+        my $saved = $plugin->_set_register_printer_mapping($register_id, $printer);
+
+        unless (defined $saved) {
+            return $c->render(
+                json => {
+                    error => 'Register not found or printer invalid',
+                    error_code => 'REGISTER_NOT_FOUND'
+                },
+                status => 404
+            );
+        }
+
+        return $c->render(
+            json => {
+                status      => 'saved',
+                register_id => $register_id,
+                printer     => $saved
+            },
+            status => 200
+        );
+    }
+    catch {
+        my $plugin = Koha::Plugin::Com::OpenFifth::QZTray->new();
+        $plugin->_log_event('error', 'Error saving register printer mapping', {
+            error => "$_",
+            action => 'setRegisterPrinter',
+            endpoint => '/set-register-printer'
+        });
+        return $c->render(
+            json => {
+                error => 'Failed to save register printer mapping',
+                error_code => 'SET_REGISTER_PRINTER_FAILED'
             },
             status => 500
         );

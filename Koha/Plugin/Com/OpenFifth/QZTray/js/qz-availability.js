@@ -77,11 +77,11 @@
                     // A timeout (rather than an outright error) is a strong signal
                     // that something is intercepting/blocking the local socket —
                     // exactly the fingerprint of a network filter. Capture it.
-                    self._logConnectionFailure('timeout', null);
+                    self.logDiagnostic({ category: 'connection', failureType: 'timeout', timeoutMs: timeoutMs });
                     settle(false);
                 }, timeoutMs);
 
-                qz.websocket.connect({ retries: 0, delay: 0 })
+                self.ensureConnected()
                     .then(function() {
                         clearTimeout(timeoutId);
                         if (window.qzConfig.debugMode) {
@@ -93,21 +93,17 @@
                         // if we already resolved false to the UI.
                         self.available = true;
 
-                        // Disconnect after check
-                        return qz.websocket.disconnect()
-                            .catch(function() {
-                                // Ignore disconnect errors
-                            })
-                            .then(function() {
-                                settle(true);
-                            });
+                        // Keep the socket open so drawer/discovery operations can
+                        // reuse it — this avoids a second "Allow" trust prompt and
+                        // the connect/disconnect churn on every action.
+                        settle(true);
                     })
                     .catch(function(error) {
                         clearTimeout(timeoutId);
                         if (window.qzConfig.debugMode) {
                             console.log('QZ Tray: Not available - connection error:', error.message);
                         }
-                        self._logConnectionFailure('error', error);
+                        self.logDiagnostic({ category: 'connection', failureType: 'error', error: error });
                         settle(false);
                     });
             });
@@ -147,6 +143,21 @@
         },
 
         /**
+         * Ensure a live QZ Tray socket, reusing an existing one when present.
+         * qz.websocket.connect() rejects if a socket is already open, so we
+         * only connect when isActive() reports no live connection.
+         */
+        ensureConnected: function() {
+            if (qz.websocket && qz.websocket.isActive && qz.websocket.isActive()) {
+                if (window.qzConfig.debugMode) {
+                    console.log('QZ Tray: Reusing existing open connection');
+                }
+                return Promise.resolve();
+            }
+            return qz.websocket.connect({ retries: 0, delay: 0 });
+        },
+
+        /**
          * Resolve the effective availability-probe timeout (ms). Prefers the
          * admin-configured value from plugin config, falling back to the
          * built-in default when unset or invalid.
@@ -158,24 +169,32 @@
         },
 
         /**
-         * Report a failed availability probe to the server for fleet-wide
-         * diagnostics. Only fires when discovery or debug mode is enabled, so
-         * an operator/admin can turn it on centrally in plugin config and see
-         * which tills cannot reach QZ Tray (and why) without touching each
-         * machine. Fire-and-forget: never blocks or breaks the probe result.
+         * Report a QZ Tray diagnostic failure to the server for fleet-wide
+         * visibility. Handles both connection-probe failures and drawer-
+         * operation failures via the `category` field. Only fires when
+         * discovery or debug mode is enabled, so an admin can turn it on
+         * centrally and see which tills are failing (and why) without touching
+         * each machine. Fire-and-forget: never blocks or breaks the caller.
+         *
+         * opts: { category, failureType, error, timeoutMs, printer }
          */
-        _logConnectionFailure: function(failureType, error) {
+        logDiagnostic: function(opts) {
             if (!window.qzConfig.discoveryMode && !window.qzConfig.debugMode) {
                 return;
             }
 
+            opts = opts || {};
+            var error = opts.error;
+
             try {
                 var payload = {
-                    failure_type: failureType,
-                    error_message: (error && error.message) ? String(error.message) : '',
+                    category: opts.category || 'connection',
+                    failure_type: opts.failureType || 'error',
+                    error_message: (error && error.message) ? String(error.message) : (opts.errorMessage || ''),
                     error_name: (error && error.name) ? String(error.name) : '',
-                    timeout_ms: failureType === 'timeout' ? this._getTimeoutMs() : null,
+                    timeout_ms: (opts.timeoutMs != null) ? opts.timeoutMs : null,
                     secure_context: (typeof window.isSecureContext === 'boolean') ? window.isSecureContext : null,
+                    printer: opts.printer || '',
                     user_agent: navigator.userAgent || '',
                     register_id: this.config.getCurrentRegister ? (this.config.getCurrentRegister() || '') : '',
                     page_url: window.location.pathname || 'unknown'
@@ -191,17 +210,17 @@
                     body: JSON.stringify(payload)
                 }).then(function(response) {
                     if (window.qzConfig.debugMode && response.ok) {
-                        console.log('QZ Tray: Connection failure logged for diagnostics');
+                        console.log('QZ Tray: Diagnostic failure logged (' + payload.category + ')');
                     }
                 }).catch(function(logError) {
                     if (window.qzConfig.debugMode) {
-                        console.log('QZ Tray: Failed to log connection failure:', logError);
+                        console.log('QZ Tray: Failed to log diagnostic failure:', logError);
                     }
                 });
             } catch (e) {
                 // Diagnostics must never interfere with normal operation
                 if (window.qzConfig.debugMode) {
-                    console.log('QZ Tray: Error while logging connection failure:', e);
+                    console.log('QZ Tray: Error while logging diagnostic failure:', e);
                 }
             }
         },

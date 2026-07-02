@@ -13,6 +13,7 @@
         typeof QZMessaging === 'undefined' ||
         typeof QZAuth === 'undefined' ||
         typeof QZAvailability === 'undefined' ||
+        typeof QZPrinterPicker === 'undefined' ||
         typeof QZDrawer === 'undefined' ||
         typeof QZPageDetector === 'undefined' ||
         typeof QZButtonManager === 'undefined' ||
@@ -27,6 +28,7 @@
         messaging: null,
         auth: null,
         availability: null,
+        picker: null,
         drawer: null,
         pageDetector: null,
         buttonManager: null,
@@ -53,7 +55,8 @@
             this.messaging = new QZMessaging(this.config);
             this.auth = new QZAuth(this.config, this.messaging);
             this.availability = new QZAvailability(this.config, this.auth);
-            this.drawer = new QZDrawer(this.config, this.messaging, this.auth, this.availability);
+            this.picker = new QZPrinterPicker();
+            this.drawer = new QZDrawer(this.config, this.messaging, this.auth, this.availability, this.picker);
             this.pageDetector = new QZPageDetector();
             this.buttonManager = new QZButtonManager(this.drawer, this.pageDetector);
             this.posToolbar = new QZPosToolbar(this.drawer);
@@ -181,9 +184,11 @@
             // Set up authentication
             this.auth.setupSecurity();
 
-            qz.websocket.connect().then(function() {
+            // Reuse the socket opened by the availability check rather than
+            // opening (and tearing down) a second connection.
+            this.availability.ensureConnected().then(function() {
                 if (window.qzConfig.debugMode) {
-                    console.log('QZ Tray: Connected for printer discovery');
+                    console.log('QZ Tray: Connection ready for printer discovery');
                 }
                 return qz.printers.find();
             }).then(function(printers) {
@@ -193,15 +198,10 @@
 
                 // Send discovered printers to server for logging
                 self._logDiscoveredPrinters(printers);
-
-                return qz.websocket.disconnect();
+                // Leave the socket open for drawer operations.
             }).catch(function(error) {
                 if (window.qzConfig.debugMode) {
                     console.log('QZ Tray: Printer discovery failed:', error);
-                }
-                // Try to disconnect even if discovery failed
-                if (qz.websocket && qz.websocket.disconnect) {
-                    qz.websocket.disconnect().catch(function() {});
                 }
             });
         },

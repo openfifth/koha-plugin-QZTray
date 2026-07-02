@@ -354,9 +354,17 @@
               "failure_type"
             ],
             "properties": {
+              "category": {
+                "type": "string",
+                "description": "Diagnostic category: 'connection' or 'drawer'"
+              },
               "failure_type": {
                 "type": "string",
-                "description": "Failure category: 'timeout' or 'error'"
+                "description": "Failure type, e.g. 'timeout', 'error', 'printer_not_found'"
+              },
+              "printer": {
+                "type": "string",
+                "description": "Printer name involved in a drawer failure, if any"
               },
               "error_message": {
                 "type": "string",
@@ -407,6 +415,115 @@
         },
         "400": {
           "description": "Invalid request data",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string",
+                "description": "Error message"
+              },
+              "error_code": {
+                "type": "string",
+                "description": "Machine-readable error code"
+              }
+            }
+          }
+        },
+        "500": {
+          "description": "Internal server error",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string",
+                "description": "Error message"
+              },
+              "error_code": {
+                "type": "string",
+                "description": "Machine-readable error code"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/set-register-printer": {
+    "post": {
+      "x-mojo-to": "Com::OpenFifth::QZTray::Controllers::Auth#setRegisterPrinter",
+      "operationId": "setRegisterPrinter",
+      "tags": [
+        "qztray-config"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "consumes": [
+        "application/json"
+      ],
+      "parameters": [
+        {
+          "name": "body",
+          "in": "body",
+          "required": true,
+          "description": "Register to printer mapping to persist",
+          "schema": {
+            "type": "object",
+            "required": [
+              "printer"
+            ],
+            "properties": {
+              "register_id": {
+                "type": "string",
+                "description": "Register ID to map (falls back to session register if omitted)"
+              },
+              "printer": {
+                "type": "string",
+                "description": "Printer name to use for this register"
+              }
+            }
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Mapping saved successfully",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "description": "Success status"
+              },
+              "register_id": {
+                "type": "string",
+                "description": "Register the mapping was saved for"
+              },
+              "printer": {
+                "type": "string",
+                "description": "Sanitised printer name that was stored"
+              }
+            }
+          }
+        },
+        "400": {
+          "description": "Invalid request data",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string",
+                "description": "Error message"
+              },
+              "error_code": {
+                "type": "string",
+                "description": "Machine-readable error code"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "Register not found",
           "schema": {
             "type": "object",
             "properties": {
