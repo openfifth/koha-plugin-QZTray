@@ -29,6 +29,42 @@
             matchedConfigs.forEach(function(config) {
                 this._replaceButtonsForConfig(config);
             }.bind(this));
+
+            // Harden Koha's "change to give" confirmation modal so a payment can't
+            // be lost by walking away from it.
+            this._hardenChangeConfirmModal();
+        },
+
+        /**
+         * Force an explicit decision on Koha's "amount collected is more than
+         * outstanding" (change to give) modal.
+         *
+         * On payment pages this modal appears when the amount tendered exceeds the
+         * amount due. The drawer has already opened at this point (staff need cash
+         * to give change), but the payment is only recorded if the modal is
+         * confirmed with "Yes". By default the modal can be dismissed by clicking
+         * the backdrop or pressing Escape, which silently abandons the payment -
+         * staff take the money, give change, close the drawer and walk away, and
+         * nothing reaches the account or till roll (cash-up surplus).
+         *
+         * Making the modal "static" keeps its backdrop blocking the rest of the
+         * page and removes the accidental-dismiss paths, so staff must click either
+         * "Yes" (submit) or "No" (cancel - e.g. not enough change in the register)
+         * before doing anything else. Koha only instantiates this modal lazily on
+         * submit, so setting the data attributes now is honoured when it is shown.
+         */
+        _hardenChangeConfirmModal: function() {
+            var modal = document.getElementById('confirm_change_form');
+            if (!modal) {
+                return; // Not a page with the change-to-give modal
+            }
+
+            modal.setAttribute('data-bs-backdrop', 'static');
+            modal.setAttribute('data-bs-keyboard', 'false');
+
+            if (window.qzConfig && window.qzConfig.debugMode) {
+                console.log('QZ Tray: Change-confirmation modal hardened (static backdrop, no Escape dismiss)');
+            }
         },
 
         /**
