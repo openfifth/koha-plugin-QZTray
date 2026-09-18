@@ -12,6 +12,8 @@ along with the comparison links — do not edit the heading or the links by hand
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-09-18
+
 ### Fixed
 - Reworded a comment in `Controllers::Auth` that used Markdown-style backticks around `use` — the plugin store's `dependency_allowlist` check does a naive text scan for backtick-quoted strings (Perl's backtick command-execution syntax) and doesn't distinguish comments from code, so it flagged the comment as shelling out
 
@@ -98,7 +100,8 @@ along with the comparison links — do not edit the heading or the links by hand
 - Debug mode for troubleshooting
 - Integration with Koha POS payment workflows
 
-[Unreleased]: https://github.com/openfifth/koha-plugin-QZTray/compare/v1.2.2...HEAD
+[Unreleased]: https://github.com/openfifth/koha-plugin-QZTray/compare/v1.2.3...HEAD
+[1.2.3]: https://github.com/openfifth/koha-plugin-QZTray/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/openfifth/koha-plugin-QZTray/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/openfifth/koha-plugin-QZTray/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/openfifth/koha-plugin-QZTray/compare/v1.1.21...v1.2.0
