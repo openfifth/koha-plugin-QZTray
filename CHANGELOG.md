@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- Unused `templates/tool.tt` scaffold left over from plugin creation — never wired to a controller method, and its placeholder text ("Plugin Name Tool") tripped the plugin store's translatable-templates check
+
 ### Fixed
 - Declared the plugin licence (GPL-3.0) in metadata, required by the plugin store's manifest completeness check
 - Corrected `minimum_version` to the three-part `22.05.00` form matching Koha's release tag naming (`v22.05.00`), so the plugin store can resolve a matching Koha checkout to syntax-check against
