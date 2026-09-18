@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected `minimum_version` to the three-part `22.05.00` form matching Koha's release tag naming (`v22.05.00`), so the plugin store can resolve a matching Koha checkout to syntax-check against
 - Resolved a Perl::Critic warning in `_get_supported_printer_patterns` by assigning the sorted keys to a list before returning, rather than returning `sort` directly
 - Built the RSA private key PEM header markers used for upload format validation via `sprintf` instead of bare literals, so the source no longer contains a contiguous `-----BEGIN RSA PRIVATE KEY-----` string that the plugin store's hardcoded-credential scanner mistook for an embedded key
+- Declared `maximum_version` (26.05.00, the current stable Koha series) in metadata, as recommended by the plugin store
 
 ### Added
 - Upfront QZ Tray availability check with result caching for improved performance

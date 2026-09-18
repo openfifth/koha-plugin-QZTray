@@ -44,6 +44,7 @@ eval {
 
 our $VERSION         = '1.1.21';
 our $MINIMUM_VERSION = "22.05.00";
+our $MAXIMUM_VERSION = "26.05.00";
 
 our $metadata = {
     name            => 'QZ Tray Integration',
@@ -52,7 +53,7 @@ our $metadata = {
     date_authored   => '2025-01-31',
     date_updated    => '2026-07-02',
     minimum_version => $MINIMUM_VERSION,
-    maximum_version => undef,
+    maximum_version => $MAXIMUM_VERSION,
     version         => $VERSION,
     license         => 'GPL-3.0',
 };
