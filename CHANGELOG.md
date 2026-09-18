@@ -16,6 +16,7 @@ along with the comparison links — do not edit the heading or the links by hand
 
 ### Changed
 - Synced release tooling with `koha-plugin-template`: `increment_version.js` now auto-promotes the `[Unreleased]` changelog section on version bumps, `package.json`'s release scripts commit only the version-bump files (not the whole tree) and re-enable any dormant GitHub Actions workflows before pushing a release tag, and the CI workflow gained a manual `workflow_dispatch` trigger and a keep-alive job
+- `release:major` now also re-enables dormant GitHub Actions workflows before pushing, matching `release:patch`/`release:minor`
 
 ### Fixed
 
