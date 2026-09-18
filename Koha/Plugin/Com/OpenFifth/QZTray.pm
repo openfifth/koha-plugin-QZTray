@@ -42,7 +42,7 @@ eval {
     $OPENSSL_AVAILABLE = 0;
 };
 
-our $VERSION         = '1.2.0';
+our $VERSION         = '1.2.1';
 our $MINIMUM_VERSION = "22.05.00";
 our $MAXIMUM_VERSION = "26.05.00";
 

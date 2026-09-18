@@ -12,6 +12,8 @@ along with the comparison links — do not edit the heading or the links by hand
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-18
+
 ### Added
 
 ### Changed
@@ -84,5 +86,6 @@ along with the comparison links — do not edit the heading or the links by hand
 - Debug mode for troubleshooting
 - Integration with Koha POS payment workflows
 
-[Unreleased]: https://github.com/openfifth/koha-plugin-QZTray/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/openfifth/koha-plugin-QZTray/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/openfifth/koha-plugin-QZTray/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/openfifth/koha-plugin-QZTray/compare/v1.1.21...v1.2.0
