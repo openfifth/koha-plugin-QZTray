@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Declared the plugin licence (GPL-3.0) in metadata, required by the plugin store's manifest completeness check
+- Corrected `minimum_version` to the three-part `22.05.00` form matching Koha's release tag naming (`v22.05.00`), so the plugin store can resolve a matching Koha checkout to syntax-check against
 
 ### Added
 - Upfront QZ Tray availability check with result caching for improved performance

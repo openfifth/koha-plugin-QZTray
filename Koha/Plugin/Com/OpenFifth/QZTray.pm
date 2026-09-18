@@ -33,7 +33,7 @@ eval {
 };
 
 our $VERSION         = '1.1.21';
-our $MINIMUM_VERSION = "22.05.00.000";
+our $MINIMUM_VERSION = "22.05.00";
 
 our $metadata = {
     name            => 'QZ Tray Integration',
