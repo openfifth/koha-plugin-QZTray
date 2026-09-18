@@ -6,9 +6,9 @@ use Try::Tiny;
 use MIME::Base64;
 
 # Optional dependency - gracefully handle missing OpenSSL modules, same guard
-# as QZTray.pm. Needed at runtime for RSA signing only; a hard `use` here
-# would fail compilation (and the plugin store's perl_syntax check) on any
-# install/checkout without the OpenSSL Perl bindings.
+# as QZTray.pm. Needed at runtime for RSA signing only; a hard, unconditional
+# "use" here would fail compilation (and the plugin store's perl_syntax
+# check) on any install/checkout without the OpenSSL Perl bindings.
 our $OPENSSL_AVAILABLE = 1;
 eval {
     require Crypt::OpenSSL::RSA;

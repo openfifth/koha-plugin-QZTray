@@ -12,6 +12,9 @@ along with the comparison links — do not edit the heading or the links by hand
 
 ## [Unreleased]
 
+### Fixed
+- Reworded a comment in `Controllers::Auth` that used Markdown-style backticks around `use` — the plugin store's `dependency_allowlist` check does a naive text scan for backtick-quoted strings (Perl's backtick command-execution syntax) and doesn't distinguish comments from code, so it flagged the comment as shelling out
+
 ## [1.2.2] - 2026-09-18
 
 ### Changed
