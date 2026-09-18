@@ -29,10 +29,10 @@ try {
     fail(`could not fetch 'origin/main': ${e.message}`);
 }
 
-const local = run('git rev-parse main');
-const remote = run('git rev-parse origin/main');
-if (local !== remote) {
-    fail("local 'main' is not up to date with 'origin/main'. Pull/rebase before releasing.");
+try {
+    run('git merge-base --is-ancestor origin/main main');
+} catch (e) {
+    fail("local 'main' is behind (or has diverged from) 'origin/main'. Pull/rebase before releasing.");
 }
 
-console.log("✓ Release preflight checks passed (on main, clean tree, up to date with origin).");
+console.log("✓ Release preflight checks passed (on main, clean tree, not behind origin).");

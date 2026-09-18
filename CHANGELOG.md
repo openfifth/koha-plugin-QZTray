@@ -16,6 +16,7 @@ along with the comparison links — do not edit the heading or the links by hand
 - Synced further release-tooling changes from `koha-plugin-template`: added `check_release_ready.js` as a preflight for `release:*` (aborts before mutating anything unless on `main`, the tree is clean, and local `main` matches `origin/main`), added a CI `guard` job that skips the duplicate test-matrix run `--follow-tags` triggers on every release, trimmed the release job's `issues`/`pull-requests` permissions from write to read, added an explicit `permissions` block to the test job, pinned the kpz-builder action to `@v3` instead of the floating `@master`, and routed workflow expressions used inside shell steps through `env:` vars to close a workflow-injection class
 
 ### Fixed
+- Corrected `check_release_ready.js`'s origin-sync check: it compared local and `origin/main` SHAs for exact equality, so it failed on the normal case of releasing with unpushed local commits (which `release:*` itself pushes). Now uses `git merge-base --is-ancestor` and only fails when local is genuinely behind or diverged
 - Made `Crypt::OpenSSL::RSA` an optional dependency in `Controllers::Auth`, matching the existing guard in `QZTray.pm`. The controller's unconditional `use` caused a hard compile-time failure (and a plugin store `perl_syntax` failure) on any checkout without the OpenSSL Perl bindings installed; `signMessage` now returns a clear 503 if they're unavailable at runtime instead
 
 ## [1.2.1] - 2026-09-18
