@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Declared the plugin licence (GPL-3.0) in metadata, required by the plugin store's manifest completeness check
+
 ### Added
 - Upfront QZ Tray availability check with result caching for improved performance
 - User-visible warning message when QZ Tray is not detected at page load

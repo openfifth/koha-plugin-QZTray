@@ -44,6 +44,7 @@ our $metadata = {
     minimum_version => $MINIMUM_VERSION,
     maximum_version => undef,
     version         => $VERSION,
+    license         => 'GPL-3.0',
 };
 
 # Definitive printer support mapping
