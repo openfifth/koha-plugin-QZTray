@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -10,7 +11,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: "0 6 * * *"
+    - cron: "0 6 1,15 * *"
 
 jobs:
   unit_tests:
@@ -166,3 +167,19 @@ jobs:
             ${{ steps.kpz.outputs.filename }}
             CHANGELOG.md
           generate_release_notes: true
+
+  keepalive:
+    name: Keep Alive
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - name: Check age and push commit if needed
+      run: |
+        LAST_COMMIT=$( git --no-pager log -1 --format=%ct )
+        NOW=$(date +%s)
+        DIFF=$(($NOW-$LAST_COMMIT))
+        DAYS=$(($DIFF/86400))
+        git config --global user.email jacob.omara@openfifth.co.uk
+        git config --global user.name "Jacob O'Mara"
+        git commit --allow-empty -m "Automated commit from keep alive workflow"
+        if [ "$DAYS" -gt "50" ]; then git push; fi

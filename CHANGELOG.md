@@ -5,7 +5,21 @@ All notable changes to the QZ Tray Integration plugin will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Add user-visible changes under the `[Unreleased]` heading below as you work.
+On the next `npm run release:*`, `increment_version.js` promotes `[Unreleased]`
+to a dated `[X.Y.Z]` section and inserts a fresh empty `[Unreleased]` above it
+along with the comparison links — do not edit the heading or the links by hand.
+
 ## [Unreleased]
+
+### Added
+
+### Changed
+- Synced release tooling with `koha-plugin-template`: `increment_version.js` now auto-promotes the `[Unreleased]` changelog section on version bumps, `package.json`'s release scripts commit only the version-bump files (not the whole tree) and re-enable any dormant GitHub Actions workflows before pushing a release tag, and the CI workflow gained a manual `workflow_dispatch` trigger and a keep-alive job
+
+### Fixed
+
+## [1.2.0] - 2026-09-18
 
 ### Removed
 - Unused `templates/tool.tt` scaffold left over from plugin creation — never wired to a controller method, and its placeholder text ("Plugin Name Tool") tripped the plugin store's translatable-templates check
@@ -68,3 +82,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for multiple printer models with custom drawer codes
 - Debug mode for troubleshooting
 - Integration with Koha POS payment workflows
+
+[Unreleased]: https://github.com/openfifth/koha-plugin-QZTray/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/openfifth/koha-plugin-QZTray/compare/v1.1.21...v1.2.0
