@@ -4,7 +4,18 @@ use Modern::Perl;
 use Mojo::Base 'Mojolicious::Controller';
 use Try::Tiny;
 use MIME::Base64;
-use Crypt::OpenSSL::RSA;
+
+# Optional dependency - gracefully handle missing OpenSSL modules, same guard
+# as QZTray.pm. Needed at runtime for RSA signing only; a hard `use` here
+# would fail compilation (and the plugin store's perl_syntax check) on any
+# install/checkout without the OpenSSL Perl bindings.
+our $OPENSSL_AVAILABLE = 1;
+eval {
+    require Crypt::OpenSSL::RSA;
+    1;
+} or do {
+    $OPENSSL_AVAILABLE = 0;
+};
 
 sub getCertificate {
     my $c = shift->openapi->valid_input or return;
@@ -72,6 +83,16 @@ sub signMessage {
                     error_code => 'MESSAGE_PARAMETER_MISSING'
                 },
                 status  => 400
+            );
+        }
+
+        unless ($OPENSSL_AVAILABLE) {
+            return $c->render(
+                json => {
+                    error => 'Server-side OpenSSL libraries not available for signing',
+                    error_code => 'OPENSSL_NOT_AVAILABLE'
+                },
+                status  => 503
             );
         }
 

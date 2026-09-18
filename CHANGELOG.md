@@ -12,6 +12,9 @@ along with the comparison links — do not edit the heading or the links by hand
 
 ## [Unreleased]
 
+### Fixed
+- Made `Crypt::OpenSSL::RSA` an optional dependency in `Controllers::Auth`, matching the existing guard in `QZTray.pm`. The controller's unconditional `use` caused a hard compile-time failure (and a plugin store `perl_syntax` failure) on any checkout without the OpenSSL Perl bindings installed; `signMessage` now returns a clear 503 if they're unavailable at runtime instead
+
 ## [1.2.1] - 2026-09-18
 
 ### Added
