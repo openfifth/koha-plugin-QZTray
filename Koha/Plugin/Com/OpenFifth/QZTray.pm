@@ -1556,7 +1556,8 @@ Returns array of printer name patterns that are supported.
 
 sub _get_supported_printer_patterns {
     my ($self) = @_;
-    return sort keys %$PRINTER_DRAWER_CODES;
+    my @patterns = sort keys %$PRINTER_DRAWER_CODES;
+    return @patterns;
 }
 
 =head3 _get_printer_support_mapping_json
