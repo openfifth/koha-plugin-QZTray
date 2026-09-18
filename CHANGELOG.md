@@ -12,6 +12,8 @@ along with the comparison links — do not edit the heading or the links by hand
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-09-18
+
 ### Changed
 - Synced further release-tooling changes from `koha-plugin-template`: added `check_release_ready.js` as a preflight for `release:*` (aborts before mutating anything unless on `main`, the tree is clean, and local `main` matches `origin/main`), added a CI `guard` job that skips the duplicate test-matrix run `--follow-tags` triggers on every release, trimmed the release job's `issues`/`pull-requests` permissions from write to read, added an explicit `permissions` block to the test job, pinned the kpz-builder action to `@v3` instead of the floating `@master`, and routed workflow expressions used inside shell steps through `env:` vars to close a workflow-injection class
 
@@ -93,6 +95,7 @@ along with the comparison links — do not edit the heading or the links by hand
 - Debug mode for troubleshooting
 - Integration with Koha POS payment workflows
 
-[Unreleased]: https://github.com/openfifth/koha-plugin-QZTray/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/openfifth/koha-plugin-QZTray/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/openfifth/koha-plugin-QZTray/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/openfifth/koha-plugin-QZTray/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/openfifth/koha-plugin-QZTray/compare/v1.1.21...v1.2.0
