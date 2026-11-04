@@ -131,6 +131,7 @@ jobs:
             cd /kohadevbox/plugins/$GITHUB_REPO &&
             export KOHA_PLUGIN_DIR=\$(pwd) &&
             export PERL5LIB=\$PERL5LIB:. &&
+            { [ ! -f cpanfile ] || sudo cpanm --notest --installdeps . ; } &&
             sudo cpanm --notest TAP::Harness::JUnit &&
             JUNIT_OUTPUT_FILE=junit.xml prove -v -r -s t/ --harness=TAP::Harness::JUnit
           "
