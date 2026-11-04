@@ -1,3 +1,20 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Copyright 2026 Open Fifth
+#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or (at your
+# option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License
+# for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 package Koha::Plugin::Com::OpenFifth::QZTray;
 
 use Modern::Perl;
@@ -49,13 +66,14 @@ our $MAXIMUM_VERSION = "26.05.00";
 our $metadata = {
     name            => 'QZ Tray Integration',
     author          => 'OpenFifth',
-    description     => 'QZ Tray printing integration for Koha',
+    description     => 'QZ Tray printing integration for Koha. Licensed under AGPL-3.0-or-later.',
     date_authored   => '2025-01-31',
     date_updated    => '2026-09-18',
     minimum_version => $MINIMUM_VERSION,
     maximum_version => $MAXIMUM_VERSION,
     version         => $VERSION,
-    license         => 'GPL-3.0',
+    license         => 'AGPL-3.0-or-later',
+    license_url     => 'https://www.gnu.org/licenses/agpl-3.0.html',
 };
 
 # Definitive printer support mapping

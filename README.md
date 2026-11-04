@@ -187,7 +187,7 @@ For issues and bug reports, please use the project's issue tracker.
 
 ## License
 
-This plugin is released under the GNU General Public License v3.0, consistent with Koha's licensing.
+This plugin is released under the GNU Affero General Public License v3.0 or later, consistent with Koha's licensing.
 
 ## Version History
 
