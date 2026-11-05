@@ -6,7 +6,7 @@
     "module": "Koha::Plugin::Com::OpenFifth::QZTray",
     "pm_path": "Koha/Plugin/Com/OpenFifth/QZTray.pm"
   },
-  "version": "1.2.3",
+  "version": "1.2.4",
   "previous_version": "1.2.3",
   "scripts": {
     "version:patch": "node increment_version.js patch | cat",

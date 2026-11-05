@@ -59,7 +59,7 @@ eval {
     $OPENSSL_AVAILABLE = 0;
 };
 
-our $VERSION         = '1.2.3';
+our $VERSION         = '1.2.4';
 our $MINIMUM_VERSION = "22.05.00";
 our $MAXIMUM_VERSION = "26.05.00";
 
@@ -68,7 +68,7 @@ our $metadata = {
     author          => 'OpenFifth',
     description     => 'QZ Tray printing integration for Koha. Licensed under AGPL-3.0-or-later.',
     date_authored   => '2025-01-31',
-    date_updated    => '2026-09-18',
+    date_updated    => '2026-11-05',
     minimum_version => $MINIMUM_VERSION,
     maximum_version => $MAXIMUM_VERSION,
     version         => $VERSION,
